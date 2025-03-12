@@ -1,0 +1,37 @@
+# No non-source python resources.
+*.pyc
+*.pyd
+*.pyo
+*.pyx
+
+# No data files
+#*.h5
+#*.jpg
+#*.png
+#*.txt
+
+# No emacs backups
+*~
+
+# No build artifacts
+**/.pytest_cache
+**/__pycache__
+**/_build
+**/build
+**/pip_cache
+*.egg-info
+*.settings
+.coverage
+.idea
+.project
+.pydevproject
+.tox
+*test-results/
+venv*
+
+# cluster working files
+ccls_slurm_*
+pip.log
+python.log
+slurm-*.out
+systeminfo.log
