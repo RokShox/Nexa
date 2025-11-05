@@ -126,9 +126,11 @@ class Table220Parser:
         """Check if line marks the end of the table."""
         # Check for next table or end of output
         stripped = line.strip()
-        if not stripped:
+        if "****" in stripped:
+            return True
+        else:            
             return False
-        
+
         # Look for indicators of next section
         return ("print table" in line.lower() and "table 220" not in line.lower()) or \
                line.startswith("1") and any(x in line.lower() for x in ["probid", "keff results", "run terminated"])
@@ -150,7 +152,7 @@ class Table220Parser:
         """Parse inventory header to extract step, time, power, and type."""
         try:
             # Extract inventory type
-            inv_type = "actinide" if "actinide" in line.lower() else "nonactinide"
+            inv_type = "nonactinide" if "nonactinide" in line.lower() else "actinide"
             
             # Extract step
             step_match = re.search(r"step\s+(\d+)", line)
@@ -182,9 +184,9 @@ class Table220Parser:
     def _is_inventory_data_line(self, line: str) -> bool:
         """Check if line contains inventory data."""
         stripped = line.strip()
-        if not stripped or "no." in stripped.lower() or "zaid" in stripped.lower():
+        if not stripped or "zaid" in stripped.lower() or "Ci" in stripped.lower():
             return False
-        return stripped.split() and (stripped.split()[0].isdigit() or stripped.startswith("totals"))
+        return stripped.split()[0].isdigit() or stripped.startswith("totals")
     
     def _is_totals_line(self, line: str) -> bool:
         """Check if line contains totals."""
