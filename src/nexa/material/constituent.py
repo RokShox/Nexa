@@ -1,10 +1,12 @@
 import re
 import sys
-from typing import List, Dict, Self
+from io import StringIO
+from typing import List, Dict, Self, Tuple
 from copy import deepcopy
 
 # from ruamel.yaml import YAML
 
+from nexa.data.isotope import Isotope
 from nexa.interface import IConstituent
 from nexa.globals import CompositionMode
 
@@ -199,6 +201,20 @@ class Constituent:
             raise ValueError(f"Constituent {name} not found")
         return self._composition[name][0]
 
+    def isotopes(self) -> Dict[str, Tuple[Isotope, float, float]]:
+        """Get isotopes dictionary"""
+        con: IConstituent = self
+        if self.level != 1:
+            con = self.flatten()    
+
+        isos: Dict[str, Tuple[Isotope, float, float]] = {}
+        for iso in con.constituents():
+            iso_frac_mass = con.mass_fraction(iso.name)
+            iso_frac_atom = con.atom_fraction(iso.name)
+            isos[iso.name] = (iso.copy(), iso_frac_mass, iso_frac_atom)
+
+        return isos
+
     def copy(self, new_name: str = None) -> IConstituent:
         """Deep copy the constituent.
 
@@ -325,10 +341,15 @@ class Constituent:
             tbl.append(self_tbl)
             return tbl
 
-    def display(self, f=None) -> None:
+    def display(self, f=None) -> str | None:
         tbl = self.table()
 
-        if f is None:
+        # Handle string output
+        return_string = False
+        if f == "":
+            f = StringIO()
+            return_string = True
+        elif f is None:
             f = sys.stdout
 
         # Ugly hack
@@ -342,7 +363,7 @@ class Constituent:
         epad = eprec + 6 + min_sep
         fprec = 4
         fpad = fprec + 4 + min_sep
-        if f.name == "<stdout>":
+        if return_string or f.name == "<stdout>":
             # Header line 1
             # symbols
             f.write(f"{'Constituent':<{sum(spad)}}")
@@ -396,7 +417,7 @@ class Constituent:
             f.write("\n")
 
         for row in tbl:
-            if f.name == "<stdout>":
+            if return_string or f.name == "<stdout>":
                 # symbols
                 f.write(
                     "".join([f"{row[i]:<{spad[self.level - i]}}" for i in range(self.level + 1)])
@@ -426,6 +447,9 @@ class Constituent:
                 f.write("\t".join([(f"{col}" if type(col) is str else f"{col:8e}") for col in row]))
                 f.write("\n")
         f.write("\n")
+
+        if return_string:
+            return f.getvalue()
 
     # endregion
 

@@ -1,4 +1,4 @@
-class Zaid:
+class zaid:
     # def __init__(self, name, atomic_number, mass_number):
     #     self.name = name
     #     self.atomic_number = atomic_number
