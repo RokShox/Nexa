@@ -1,14 +1,13 @@
 import re
 import sys
-from io import StringIO
-from typing import List, Dict, Self, Tuple
 from copy import deepcopy
+from io import StringIO
+from typing import Dict, List, Self, Tuple
 
 # from ruamel.yaml import YAML
-
 from nexa.data.isotope import Isotope
-from nexa.interface import IConstituent
 from nexa.globals import CompositionMode
+from nexa.interface import IConstituent
 
 
 class Constituent:
@@ -205,7 +204,7 @@ class Constituent:
         """Get isotopes dictionary"""
         con: IConstituent = self
         if self.level != 1:
-            con = self.flatten()    
+            con = self.flatten()
 
         isos: Dict[str, Tuple[Isotope, float, float]] = {}
         for iso in con.constituents():

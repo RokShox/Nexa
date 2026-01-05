@@ -1,11 +1,10 @@
-from ruamel.yaml import YAML
-
 from pathlib import Path
 from typing import Dict
 
-from nexa.data import Isotopes
-from nexa.material import Constituent
+from ruamel.yaml import YAML
+
 from nexa.globals import CompositionMode
+from nexa.material import Constituent
 
 
 class Abundances(dict):
@@ -19,7 +18,6 @@ class Abundances(dict):
     """
 
     _initialized: bool = False
-    _isos = Isotopes()
 
     def __new__(cls):
         """Singleton pattern"""
@@ -35,9 +33,11 @@ class Abundances(dict):
         abundances.
         Overrides dict methods that change values to prevent changes.
         """
+        from nexa.data import Isotopes
 
         if not self._initialized:
             self._initialized = True
+            self._isos = Isotopes()
             print("initializing Abundances")
             p = Path(__file__).resolve().parent.parent / "resources" / "tblNatIso.yaml"
             yaml = YAML()
