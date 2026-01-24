@@ -30,6 +30,58 @@ class LibEndf80:
     }
     _endf80_ext = sorted(((ext, temp) for ext, temp in _endf80_ext.items()), key=lambda x: x[1])
 
+    _missing_zaid = [
+        12023,
+        17034,
+        36088,
+        38091,
+        38092,
+        39086,
+        39087,
+        39088,
+        39092,
+        39093,
+        40089,
+        40097,
+        41091,
+        41098,
+        41099,
+        42091,
+        42101,
+        45106,
+        45107,
+        45108,
+        45109,
+        45110,
+        45111,
+        46111,
+        46112,
+        47106,
+        47110,
+        48115,
+        49116,
+        49117,
+        49118,
+        49119,
+        49120,
+        49121,
+        50121,
+        51127,
+        52527, # breaks Origen
+        52529, # breaks Origen
+        57141,
+        57142,
+        59145,
+        61548, # breaks Origen
+        64150,
+        67164,
+        67166,
+        69166,
+        69167,
+        88227,
+        89228,
+    ]
+
     def __new__(cls, *args, **kwargs):
         raise TypeError(f"{cls.__name__} cannot be instantiated")
 
@@ -100,6 +152,11 @@ class LibEndf80:
         tempK = temp + 273.15
         return cls.sabid_by_tempK(base, tempK)
 
+    @classmethod
+    def is_missing_zaid(cls, zaid) -> bool:
+        """Check if ZAID is missing from ENDF/B-VIII.1."""
+
+        return zaid in cls._missing_zaid
 
 if __name__ == "__main__":
     print(LibEndf80.sabid_by_tempMeV("h-h2o", 2.53e-08))

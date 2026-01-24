@@ -15,18 +15,18 @@ class MaterialCard:
     - Optional keywords for library specifications and other parameters
     """
 
-    def __init__(self, material_number: int):
+    def __init__(self, mat_id: int, constituent: Optional[Constituent] = None):
         """
         Initialize a material card.
 
         Args:
             material_number: Material number (0-99,999,999). Use 0 for global keywords.
         """
-        if not (0 <= material_number <= 99999999):
+        if not (0 <= mat_id <= 99999999):
             raise ValueError("Material number must be between 0 and 99,999,999")
 
-        self.material_number = material_number
-        self._constituent: Constituent
+        self.material_number = mat_id
+        self._constituent: Constituent = constituent
         self.keywords: Dict[str, Union[str, int, float, List[float]]] = {}
 
         # Track fraction type to ensure consistency
@@ -186,36 +186,37 @@ class MaterialCard:
 # Example usage and test functions
 if __name__ == "__main__":
 
-    abund: Abundances = Abundances()
-    isos: Isotopes = Isotopes()
-    elms: Elements = Elements()
+    # abund: Abundances = Abundances()
+    # isos: Isotopes = Isotopes()
+    # elms: Elements = Elements()
 
-    tempK: float = 600.0
-    ext81: str = LibEndf81.ext_by_tempK(tempK)
+    # tempK: float = 600.0
+    # ext81: str = LibEndf81.ext_by_tempK(tempK)
 
-    # Example 1: Water with atomic fractions
-    con_h: Constituent = abund["h"]
-    con_o: Constituent = abund["o"]
-    con_water = Constituent("water", CompositionMode.Atom)
-    con_water.add(con_h, 2.0).add(con_o, 1.0).seal()
-    print(f"{con_water = }")
+    # # Example 1: Water with atomic fractions
+    # con_h: Constituent = abund["h"]
+    # con_o: Constituent = abund["o"]
+    # con_water = Constituent("water", CompositionMode.Atom)
+    # con_water.add(con_h, 2.0).add(con_o, 1.0).seal()
+    # print(f"{con_water = }")
 
-    m_water = MaterialCard(1)
-    m_water.constituent(con_water)
-    m_water.set_library("NLIB", ext81)
-    print(m_water.to_string())
+    # m_water = MaterialCard(1)
+    # m_water.constituent(con_water)
+    # m_water.set_library("NLIB", ext81)
+    # print(m_water.to_string())
 
-    con_c: Constituent = abund["C"]
-    con_h: Constituent = abund["H"]
-    con_n: Constituent = abund["N"]
-    con_acryl: Constituent = Constituent("Acrylonitrile", CompositionMode.Atom)
-    con_acryl.add(con_c, 3.0 / 7.0).add(con_h, 3.0 / 7.0).add(con_n, 1.0 / 7.0).seal()
-    con_butad: Constituent = Constituent("Butadiene", CompositionMode.Atom)
-    con_butad.add(con_c, 0.4).add(con_h, 0.6).seal()
-    con_rubber: Constituent = Constituent("Nitrile Rubber", CompositionMode.Mass)
-    con_rubber.add(con_acryl, 0.5).add(con_butad, 0.5).seal()
+    # con_c: Constituent = abund["C"]
+    # con_h: Constituent = abund["H"]
+    # con_n: Constituent = abund["N"]
+    # con_acryl: Constituent = Constituent("Acrylonitrile", CompositionMode.Atom)
+    # con_acryl.add(con_c, 3.0 / 7.0).add(con_h, 3.0 / 7.0).add(con_n, 1.0 / 7.0).seal()
+    # con_butad: Constituent = Constituent("Butadiene", CompositionMode.Atom)
+    # con_butad.add(con_c, 0.4).add(con_h, 0.6).seal()
+    # con_rubber: Constituent = Constituent("Nitrile Rubber", CompositionMode.Mass)
+    # con_rubber.add(con_acryl, 0.5).add(con_butad, 0.5).seal()
 
-    m_rubber = MaterialCard(2)
-    m_rubber.constituent(con_rubber)
-    m_rubber.set_library("NLIB", ext81)
-    print(m_rubber.to_string())
+    # m_rubber = MaterialCard(2)
+    # m_rubber.constituent(con_rubber)
+    # m_rubber.set_library("NLIB", ext81)
+    # print(m_rubber.to_string())
+    pass

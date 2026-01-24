@@ -1,6 +1,6 @@
 import sys
 import re
-import scale.data.zaid as zaid
+import nexa.scale.data.zaid as zaid
 
 def main():
     # if len(sys.argv) < 2:

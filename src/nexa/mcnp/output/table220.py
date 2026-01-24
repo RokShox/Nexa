@@ -39,6 +39,25 @@ class SummaryInventory:
     nonactinide_nuclides: List[SummaryNuclideData] = field(default_factory=list)
     nonactinide_totals: Optional[SummaryTotals] = None
 
+    def nuclides_by_type(self, type: str) -> List[SummaryNuclideData]:
+        """Get nuclides by type: 'actinide' or 'nonactinide'."""
+        if type == "actinide":
+            return self.actinide_nuclides
+        elif type == "nonactinide":
+            return self.nonactinide_nuclides
+        else:
+            raise ValueError("Invalid nuclide type. Use 'actinide' or 'nonactinide'."   )
+        
+    def totals_by_type(self, type: str) -> Optional[SummaryTotals]:
+        """Get totals by type: 'actinide' or 'nonactinide'."""
+        if type == "actinide":
+            return self.actinide_totals
+        elif type == "nonactinide":
+            return self.nonactinide_totals
+        else:
+            raise ValueError("Invalid totals type. Use 'actinide' or 'nonactinide'.")
+    
+
 
 class Table220Parser:
     """Parser for MCNP output Table 220 - Burnup summary table summed over all materials."""
@@ -68,6 +87,8 @@ class Table220Parser:
         self._inventory_type = None
         self._total_volume = None
         
+        # summary tables repeat the same steps over and over, so only keep one for each unique step   
+
         for line in lines:
             if self._is_table_header(line):
                 self._header_found = True
@@ -75,7 +96,8 @@ class Table220Parser:
             
             if self._header_found:
                 if self._is_end_of_table(line):
-                    break
+                    self._header_found = False
+                    continue
                 
                 if self._is_volume_line(line):
                     self._total_volume = self._extract_volume(line)
@@ -88,9 +110,7 @@ class Table220Parser:
                         
                         # Find existing inventory for this step or create new one
                         existing_inv = self._find_inventory_by_step(self._current_step)
-                        if existing_inv:
-                            self._current_inventory = existing_inv
-                        else:
+                        if not existing_inv:
                             self._current_inventory = SummaryInventory(
                                 step=self._current_step,
                                 time_days=time_days,
@@ -98,6 +118,10 @@ class Table220Parser:
                                 total_volume_cm3=self._total_volume or 0.0
                             )
                             self.summary_inventories.append(self._current_inventory)
+                        elif not existing_inv.nuclides_by_type(self._inventory_type):
+                            self._current_inventory = existing_inv
+                        else:
+                            self._current_inventory = None  # Already have this inventory type for this step
                     continue
                 
                 if self._current_inventory and self._is_inventory_data_line(line):
@@ -108,6 +132,9 @@ class Table220Parser:
                                 self._current_inventory.actinide_totals = totals
                             else:
                                 self._current_inventory.nonactinide_totals = totals
+                            self._current_inventory = None  # Reset for next inventory
+                        else:
+                            raise ValueError(f"Error parsing totals line: {line}")   
                     else:
                         nuclide = self._parse_inventory_data_line(line)
                         if nuclide:
@@ -169,8 +196,11 @@ class Table220Parser:
             if all(x is not None for x in [step, time_days, power_mw]):
                 return step, time_days, power_mw, inv_type
             
-        except (ValueError, AttributeError):
-            pass
+        except ValueError:
+            raise ValueError(f"Error parsing inventory header line: {line}")
+        
+        except AttributeError:
+            raise AttributeError(f"Error parsing inventory header line: {line}")
         
         return None
     

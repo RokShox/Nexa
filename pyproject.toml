@@ -51,6 +51,10 @@ build-backend = "setuptools.build_meta"
 [project.scripts]
 nexa = "nexa.main:main"
 nexa-cli = "nexa.main:main_cli"
+getkeff = "nexa.tools.getkeff:main"
+getMcnpIso = "nexa.tools.getMcnpIso:main"
+getMcnpFlux = "nexa.tools.getMCNPFlux:main"
+getOrigenIso = "nexa.tools.getOrigenIso:main"
 
 [tool.ruff]
 line-length = 100

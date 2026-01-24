@@ -3320,13 +3320,13 @@ class zaid:
     'uuo-293' : 118293}
 
     def get_zaid(self, iso):
-        if iso in zaid._zaid:
-            return zaid._zaid[iso]
+        if iso in self._zaid:
+            return self._zaid[iso]
         else:
             return None
 
     def get_iso(self, zz):
-        for iso, z in zaid._zaid.items():
+        for iso, z in self._zaid.items():
             if z == zz:
                 return iso
         return None

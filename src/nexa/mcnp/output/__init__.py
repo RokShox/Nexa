@@ -12,3 +12,6 @@ from .table140 import Table140Parser, NuclideActivity, CellActivity, TableTotals
 from .table175 import Table175Parser, EstimatorData, CombinationData, CycleData, SkippedCycleData
 from .table210 import Table210Parser, NeutronicsData, MaterialBurnupData, NuclideInventoryData, InventoryTotals, MaterialInventory
 from .table220 import Table220Parser, SummaryNuclideData, SummaryTotals, SummaryInventory
+from .output import MCNPOutputParser, MCNPOutputKeff
+from .mctal import MctalParser, MctalOverview
+

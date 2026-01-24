@@ -1,6 +1,26 @@
+from dataclasses import dataclass
 import re
 from pathlib import Path
 from typing import Dict, List, Optional, Union
+
+@dataclass
+class MCNPOutputKeff:
+    """Data class to hold k-effective related information."""
+    keff: float
+    keff_sd: float
+    lifetime: Optional[float] = None
+    lifetime_sd: Optional[float] = None
+    anecf: Optional[float] = None
+    ealf: Optional[float] = None
+    nubar: Optional[float] = None
+
+    def __str__(self):
+        return f"{self.keff:.6f}\t{self.keff_sd:.6f}\t{self.lifetime:8.4e}\t{self.lifetime_sd:8.4e}\t" \
+               f"{self.anecf:8.4e}\t{self.ealf:8.4e}\t{self.nubar:.3f}"
+
+    def header(self) -> str:
+        return f"keff\tkeff_sd\tlifetime\tlifetime_sd\tanecf\tealf\tnubar"
+
 
 class MCNPOutputParser:
     """Parser for MCNP output files."""
@@ -72,20 +92,50 @@ class MCNPOutputParser:
             
         return tallies
     
-    def _parse_criticality(self) -> Dict:
+    def _parse_criticality(self) -> List[MCNPOutputKeff]:
         """Parse criticality calculations (k-effective, etc.)."""
-        criticality = {}
-        
+        criticality = []
+        self.nkeff = 0
         # Parse k-effective
         keff_pattern = r'the final estimated combined collision/absorption/track-length keff = ([\d.]+) with an estimated standard deviation of ([\d.]+)'
-        keff_match = re.search(keff_pattern, self.content, re.IGNORECASE)
+        keff_matches = re.finditer(keff_pattern, self.content, re.DOTALL | re.IGNORECASE)
         
-        if keff_match:
-            criticality['keff'] = {
-                'value': float(keff_match.group(1)),
-                'std_dev': float(keff_match.group(2))
-            }
+        for match in keff_matches:
+            criticality.append(MCNPOutputKeff(
+                keff=float(match.group(1)),
+                keff_sd=float(match.group(2))
+            ))
             
+        # Parse lifetime
+        life_pattern = r'the final combined \(col/abs/tl\) prompt removal lifetime = ([\d.Ee+-]+) seconds with an estimated standard deviation of ([\d.Ee+-]+)'
+        life_matches = re.finditer(life_pattern, self.content, re.DOTALL | re.IGNORECASE)
+        
+        for (i, match) in enumerate(life_matches):
+            criticality[i].lifetime = float(match.group(1))
+            criticality[i].lifetime_sd = float(match.group(2))
+
+        # Parse anecf
+        anecf_pattern = r'the average neutron energy causing fission = ([\d.Ee+-]+) mev'
+        anecf_matches = re.finditer(anecf_pattern, self.content, re.DOTALL | re.IGNORECASE)
+        
+        for (i, match) in enumerate(anecf_matches):
+            criticality[i].anecf = float(match.group(1))
+
+        # Parse ealf
+        ealf_pattern = r'the energy corresponding to the average neutron lethargy causing fission = ([\d.Ee+-]+) mev'
+        ealf_matches = re.finditer(ealf_pattern, self.content, re.DOTALL | re.IGNORECASE)
+        
+        for (i, match) in enumerate(ealf_matches):
+            criticality[i].ealf = float(match.group(1))
+
+        # Parse nubar
+        nubar_pattern = r'the average number of neutrons produced per fission = ([\d.Ee+-]+)'
+        nubar_matches = re.finditer(nubar_pattern, self.content, re.DOTALL | re.IGNORECASE)
+        
+        for (i, match) in enumerate(nubar_matches):
+            criticality[i].nubar = float(match.group(1))
+            self.nkeff += 1
+
         return criticality
     
     def _parse_warnings(self) -> List[str]:
@@ -124,7 +174,6 @@ class MCNPOutputParser:
             'has_errors': len(self.parsed_data.get('errors', [])) > 0,
             'has_warnings': len(self.parsed_data.get('warnings', [])) > 0,
             'num_tallies': len(self.parsed_data.get('tallies', {})),
-            'keff': self.parsed_data.get('criticality', {}).get('keff')
         }
         
         return summary

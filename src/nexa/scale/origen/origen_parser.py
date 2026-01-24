@@ -72,7 +72,7 @@ class OrigenTimeUnits(Enum):
     MINUTES = ("min", 60.0)
     HOURS = ("hr", 3600.0)
     DAYS = ("d", 86400.0)
-    YEARS = ("yr", 365.25 * 86400.0)
+    YEARS = ("y", 365.25 * 86400.0)
 
     @classmethod
     def parse(cls, unit_str: str) -> Self:
@@ -123,7 +123,7 @@ class OrigenConcentrationData:
 
     case_id: str
     case_index: int
-    total_cases: int
+    total_cases: int # This is redundant but the data is in each table
     time_units: Optional[OrigenTimeUnits] = None  # (unit, conversion_factor)
     conc_units: Optional[OrigenConcentrationUnits] = None  # (name, abbrev)
     cutoff: Optional[Tuple[str, int, float]] = None  # (type, step, value)
@@ -208,12 +208,27 @@ class CaseOverview:
     total_cases: int
     title: str = ""
     time_units: Optional[OrigenTimeUnits] = None
+    # Do not use an index into steps as an index into concentrations table, as the latter includes t=0
+    # index i into steps corresponds to step i+1 since it is zero-based
+    # concentrations at the end of index i into steps are at index i+1 in concentrations
+    # concentrations at the beginning of index i into steps are at index i in concentrations
+    # maybe to use step number as index into steps (i.e., 1-based)
+    # Better to use time_steps in NuclideConcentrationTable for finding appropriate concentration
     steps: List[CaseStep] = field(default_factory=list)
     concentrations: List[OrigenConcentrationData] = field(default_factory=list)
 
     def __str__(self):
         return f"Case '{self.case_id}' (#{self.case_index}/{self.total_cases}): {self.title}"
 
+    def concentration_data_by_units(
+        self, conc_units: OrigenConcentrationUnits
+    ) -> Optional[OrigenConcentrationData]:
+        """Get the concentration data for the specified concentration units."""
+
+        for conc_data in self.concentrations:
+            if conc_data.conc_units == conc_units:
+                return conc_data
+        return None
 
 class OrigenParser:
     """Parser for ORIGEN nuclide concentration tables."""
@@ -222,6 +237,14 @@ class OrigenParser:
         self.current_case: Optional[CaseOverview] = None
         self.current_data: Optional[OrigenConcentrationData] = None
         self.current_table: Optional[NuclideConcentrationTable] = None
+
+    def safe_float(self, value_str: str) -> float:
+        """Convert string to float, handling missing 'E' in scientific notation."""
+
+        if re.search(r"[+-][\d]{3}$", value_str):
+            value_str = value_str[:-4] + "E" + value_str[-4:]
+        return float(value_str)
+
 
     def parse_lines(self, lines: List[str]) -> List[CaseOverview]:
         """
@@ -266,15 +289,19 @@ class OrigenParser:
                     continue
 
                 if lfCase == LookFor.CASE_TITLE:
-                    title_match = re.match(r"^=\s+(\w+(?:\s+\w+)*)\s+=$", line)
-                    if title_match:
-                        title = title_match.group(1)
-                        self.current_case.title = title
-                        print(f"Processing case: {title} '{case_id}' (#{case_index}/{total_cases})")
-                        lfCase = LookFor.CASE_UNITS
-                    else:
-                        # Expected title line
-                        raise ValueError(f"Invalid case title line format: {line}")
+                    # title_match = re.match(r"^=   (.+)\s+=$", line)
+                    # if title_match:
+                        # title = title_match.group(1)
+                        # self.current_case.title = title
+                        # print(f"Processing case: {title} '{case_id}' (#{case_index}/{total_cases})")
+                        # lfCase = LookFor.CASE_UNITS
+                    # else:
+                    #     # Expected title line
+                    #     raise ValueError(f"Invalid case title line format: {line}")
+                    title = line[1:-1].strip()
+                    self.current_case.title = title
+                    print(f"Processing case: {title} '{case_id}' (#{case_index}/{total_cases})")
+                    lfCase = LookFor.CASE_UNITS
                     continue
 
                 if lfCase == LookFor.CASE_UNITS:
@@ -340,12 +367,12 @@ class OrigenParser:
 
                     # Check for sublib table header
                     sublib_match = re.match(
-                        r"^=+\s+Nuclide concentrations in ([\w/-]+),\s+([\w\s]+)\s+for case '(\w+)' \(#(\d+)/(\d+)\)\s+=",
+                        r"^=+\s+Nuclide concentrations in ([\w\s/-]+),\s+([\w\s]+)\s+for case '(\w+)' \(#(\d+)/(\d+)\)\s+=",
                         line,
                     )
                     # Check for total table header
                     total_match = re.match(
-                        r"^=+\s+Nuclide concentrations in ([\w/-]+) for case '(\w+)' \(#(\d+)/(\d+)\)\s+=",
+                        r"^=+\s+Nuclide concentrations in ([\w\s/-]+) for case '(\w+)' \(#(\d+)/(\d+)\)\s+=",
                         line,
                     )
                     if sublib_match or total_match:
@@ -396,23 +423,29 @@ class OrigenParser:
 
                 if lfConc == LookFor.CONC_TITLE:
                     # Expecting title line
-                    title_match = re.match(r"^=\s+(\w+(?:\s+\w+)*)\s+=$", line)
-                    if title_match:
-                        title = title_match.group(1)
-                        # Currently not storing title in table, but could be added if needed
-                        if title != self.current_case.title:
-                            raise ValueError(
-                                f"Warning: Concentration table title '{title}' does not match case title '{self.current_case.title}'"
-                            )
-                        lfConc = LookFor.CONC_CUTOFF
-                    else:
-                        raise ValueError(f"Invalid concentration case title line format: {line}")
+                    # title_match = re.match(r"^=\s+(\w+(?:\s+\w+)*)\s+=$", line)
+                    # if title_match:
+                    #     title = title_match.group(1)
+                    #     # Currently not storing title in table, but could be added if needed
+                    #     if title != self.current_case.title:
+                    #         raise ValueError(
+                    #             f"Warning: Concentration table title '{title}' does not match case title '{self.current_case.title}'"
+                    #         )
+                    #     lfConc = LookFor.CONC_CUTOFF
+                    # else:
+                    #     raise ValueError(f"Invalid concentration case title line format: {line}")
+                    title = line[1:-1].strip()
+                    if title != self.current_case.title:
+                        raise ValueError(
+                            f"Warning: Concentration table title '{title}' does not match case title '{self.current_case.title}'"
+                        )
+                    lfConc = LookFor.CONC_CUTOFF
                     continue
 
                 if lfConc == LookFor.CONC_CUTOFF:
                     # Expecting cutoff line
                     cutoff_match = re.match(
-                        r"^\s+\((absolute|relative) cutoff;\s(integral|concentration).*>\s+([\d.Ee+-]+)\s*\)",
+                        r"^\s+\((absolute|relative) cutoff;\s(integral|concentration).*>\s+([\d.Ee+-]+)",
                         line,
                     )
                     if cutoff_match:
@@ -460,7 +493,8 @@ class OrigenParser:
                     if re.match(r"^\s+[a-z]{1,2}-\d+", line, re.IGNORECASE):
                         parts = line.split()
                         isotope = parts[0]
-                        conc_values = [float(part) for part in parts[1:]]
+                        # Stupid SCALE sometimes leaves out the "E" in scientific notation if exponent has 3 digits
+                        conc_values = [self.safe_float(part) for part in parts[1:]]
 
                         # Check if number of concentrations matches time steps
                         if len(conc_values) != len(self.current_table.time_steps):
@@ -484,7 +518,7 @@ class OrigenParser:
                     # Parse totals line
                     if re.match(r"^\s+totals", line):
                         parts = line.split()
-                        total_values = [float(part) for part in parts[1:]]
+                        total_values = [self.safe_float(part) for part in parts[1:]]
                         self.current_table.totals = total_values
                         # Assign table to appropriate field
                         self.current_data.set_nuclide_table(

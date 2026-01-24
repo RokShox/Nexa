@@ -65,6 +65,11 @@ class MaterialInventory:
     nonactinide_nuclides: List[NuclideInventoryData] = field(default_factory=list)
     nonactinide_totals: Optional[InventoryTotals] = None
 
+    def __str__(self) -> str:
+        return (f"MaterialInventory(material_id={self.material_id}, step={self.step}, "
+                f"time_days={self.time_days}, power_mw={self.power_mw}, volume_cm3={self.volume_cm3}, "
+                f"actinide_nuclides_count={len(self.actinide_nuclides)}, "
+                f"nonactinide_nuclides_count={len(self.nonactinide_nuclides)})")
 
 class Table210Parser:
     """Parser for MCNP output Table 210 - Burnup summary table by material."""
@@ -78,6 +83,7 @@ class Table210Parser:
         self._current_material = None
         self._current_step = None
         self._current_inventory = None
+        self._current_volume = None
         self._inventory_type = None
     
     def parse_lines(self, lines: List[str]) -> Tuple[List[NeutronicsData], Dict[int, List[MaterialBurnupData]], Dict[int, List[MaterialInventory]]]:
@@ -98,9 +104,19 @@ class Table210Parser:
         self._current_material = None
         self._current_step = None
         self._current_inventory = None
+        self._current_volume = None
         self._inventory_type = None
         
-        for line in lines:
+        # Only need the last occurrence of Table 210
+        self._start_index = []
+        for i, line in enumerate(lines):
+            if self._is_table_header(line):
+                self._start_index.append(i)
+
+        if not self._start_index:
+            raise ValueError("Table 210 not found in provided lines.")
+        
+        for line in lines[self._start_index[-1]:]:
             if self._is_table_header(line):
                 self._header_found = True
                 continue
@@ -117,21 +133,15 @@ class Table210Parser:
                     self._parsing_state = "material_burnup"
                     continue
                 
-                if self._is_material_number_line(line):
+                if self._parsing_state == "material_burnup" and self._is_material_number_line(line):
                     self._current_material = self._extract_material_number(line)
                     continue
                 
-                if self._is_inventory_header(line):
-                    inventory_info = self._parse_inventory_header(line)
+                if self._is_inventory_preheader(line):
+                    self._parsing_state = "inventory"
+                    inventory_info = self._parse_inventory_preheader(line)
                     if inventory_info:
-                        self._current_material, self._current_step, time_days, power_mw, volume_cm3, self._inventory_type = inventory_info
-                        self._current_inventory = MaterialInventory(
-                            material_id=self._current_material,
-                            step=self._current_step,
-                            time_days=time_days,
-                            power_mw=power_mw,
-                            volume_cm3=volume_cm3
-                        )
+                        self._current_material, self._current_volume = inventory_info
                     continue
                 
                 if self._parsing_state == "neutronics" and self._is_neutronics_data_line(line):
@@ -145,21 +155,48 @@ class Table210Parser:
                         if self._current_material not in self.material_burnup_data:
                             self.material_burnup_data[self._current_material] = []
                         self.material_burnup_data[self._current_material].append(burnup)
-                
-                elif self._current_inventory and self._is_inventory_data_line(line):
+
+                elif self._parsing_state == "inventory" and self._is_inventory_header(line):
+                    inventory_info = self._parse_inventory_header(line)
+                    if inventory_info:
+                        mat, self._current_step, time_days, power_mw, self._inventory_type = inventory_info
+                        if self._current_material != mat:
+                            raise ValueError(f"Material ID mismatch in inventory header: expected {self._current_material}, found {mat}")
+                        # Retrieve inventory if already exists for this material and step
+                        if self._current_material in self.material_inventories:
+                            existing_inventory = next((inv for inv in self.material_inventories[self._current_material] if inv.step == self._current_step), None)
+                        else:
+                            existing_inventory = None
+                        # If found set it to current, else create new inventory
+                        if existing_inventory:
+                            self._current_inventory = existing_inventory
+                        else:
+                            self._current_inventory = MaterialInventory(
+                                material_id=self._current_material,
+                                step=self._current_step,
+                                time_days=time_days,
+                                power_mw=power_mw,
+                                volume_cm3=self._current_volume,
+                            )
+                        
+                elif self._parsing_state == "inventory" and self._is_inventory_data_line(line):
                     if self._is_totals_line(line):
                         totals = self._parse_totals_line(line)
                         if totals:
                             if self._inventory_type == "actinide":
                                 self._current_inventory.actinide_totals = totals
                             else:
-                                self._current_inventory.nonactinide_totals = totals
+                                self._current_inventory.nonactinide_totals = totals                            
                             
-                            # Store completed inventory
+                            # Create entry in material_inventories if not already present
                             if self._current_material not in self.material_inventories:
                                 self.material_inventories[self._current_material] = []
-                            self.material_inventories[self._current_material].append(self._current_inventory)
-                            self._current_inventory = None
+                            
+                            # Check if the inventory for the step already exists
+                            existing_inventory = next((inv for inv in self.material_inventories[self._current_material] if inv.step == self._current_step), None)
+                            if not existing_inventory:
+                                self.material_inventories[self._current_material].append(self._current_inventory)
+                            
                     else:
                         nuclide = self._parse_inventory_data_line(line)
                         if nuclide:
@@ -176,7 +213,7 @@ class Table210Parser:
     
     def _is_end_of_table(self, line: str) -> bool:
         """Check if line marks the end of the table."""
-        return "print table 220" in line.lower() or "burnup summary table summed over all materials" in line.lower()
+        return "print table 220" in line.lower()
     
     def _is_neutronics_header(self, line: str) -> bool:
         """Check if line contains neutronics data header."""
@@ -195,15 +232,33 @@ class Table210Parser:
         match = re.search(r"Material #:\s*(\d+)", line)
         return int(match.group(1)) if match else None
     
+    def _is_inventory_preheader(self, line: str) -> bool:
+        """Check if line is the preheader for inventory."""
+        return ("nuclide data are sorted" in line.lower() and "volume" in line.lower())
+
     def _is_inventory_header(self, line: str) -> bool:
         """Check if line contains inventory header."""
         return ("actinide inventory" in line.lower() or "nonactinide inventory" in line.lower()) and "material" in line.lower()
     
-    def _parse_inventory_header(self, line: str) -> Optional[Tuple[int, int, float, float, float, str]]:
-        """Parse inventory header to extract material, step, time, power, volume, and type."""
+    def _parse_inventory_preheader(self, line: str) -> Optional[Tuple[int, float]]:
+        """Parse inventory preheader to extract material and volume."""
+        try:
+            mat_match = re.search(r"material\s+(\d+)", line)
+            material_id = int(mat_match.group(1)) if mat_match else None
+            
+            volume_match = re.search(r"volume\s+([\d.E+-]+)", line)
+            volume_cm3 = float(volume_match.group(1)) if volume_match else 0.0
+            
+            if material_id is not None:
+                return material_id, volume_cm3
+        except (ValueError, AttributeError):
+            pass
+
+    def _parse_inventory_header(self, line: str) -> Optional[Tuple[int, int, float, float, str]]:
+        """Parse inventory header to extract material, step, time, power, and type."""
         try:
             # Extract inventory type
-            inv_type = "actinide" if "actinide" in line.lower() else "nonactinide"
+            inv_type = "nonactinide" if "nonactinide" in line.lower() else "actinide"
             
             # Extract material number
             mat_match = re.search(r"material\s+(\d+)", line)
@@ -220,13 +275,9 @@ class Table210Parser:
             # Extract power
             power_match = re.search(r"power\s+([\d.E+-]+)", line)
             power_mw = float(power_match.group(1)) if power_match else None
-            
-            # Extract volume (from previous line context or this line)
-            volume_match = re.search(r"volume\s+([\d.E+-]+)", line)
-            volume_cm3 = float(volume_match.group(1)) if volume_match else 0.0
-            
+                        
             if all(x is not None for x in [material_id, step, time_days, power_mw]):
-                return material_id, step, time_days, power_mw, volume_cm3, inv_type
+                return material_id, step, time_days, power_mw, inv_type
             
         except (ValueError, AttributeError):
             pass
