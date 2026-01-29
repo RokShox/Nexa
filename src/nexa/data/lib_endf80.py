@@ -67,12 +67,9 @@ class LibEndf80:
         49121,
         50121,
         51127,
-        52527, # breaks Origen
-        52529, # breaks Origen
         57141,
         57142,
         59145,
-        61548, # breaks Origen
         64150,
         67164,
         67166,
@@ -81,6 +78,12 @@ class LibEndf80:
         88227,
         89228,
     ]
+
+# probably ok
+#        61548, # breaks Origen
+#        52527, # breaks Origen
+#        52529, # breaks Origen
+#
 
     def __new__(cls, *args, **kwargs):
         raise TypeError(f"{cls.__name__} cannot be instantiated")

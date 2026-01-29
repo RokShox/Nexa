@@ -1,4 +1,4 @@
-from typing import List, Self
+from typing import List, Self, Tuple
 from copy import deepcopy
 from nexa.globals.enum import CompositionMode
 
@@ -15,18 +15,26 @@ class Isotope:
     z: int - atomic number
     a: int - mass number
     """
+    _SZAID = 0
+    _ZAID = 1
+    _S = 2
+    _Z = 3
+    _A = 4
+    _AMU = 5
+    # (szaid, mcnp_zaid, s, z, a, amu)
+    _iso_data: Tuple[int, int, int, int, int, float] = ()
+    _symbol: str = ""
 
-    def __init__(self, symbol: str, zaid: int, amu: float):
+    def __init__(self, symbol: str, iso_data: Tuple[int, int, int, int, int, float]) -> None:
         """All initialization is done in the constructor.  No updates are allowed."""
         self._symbol: str = symbol
-        self._zaid: int = zaid
-        self._amu: float = amu
+        self._iso_data: Tuple[int, int, int, int, int, float] = iso_data
 
     def __str__(self):
-        return f"symbol({self.symbol}) z({self.z}) a({self.a}) zaid({self.zaid}) amu({self.amu})"
+        return f"symbol({self.symbol}) z({self.z}) a({self.a}) szaid({self.szaid}) amu({self.amu})"
 
     def __repr__(self):
-        return f"symbol({self.symbol}) z({self.z}) a({self.a}) zaid({self.zaid}) amu({self.amu})"
+        return f"symbol({self.symbol}) z({self.z}) a({self.a}) szaid({self.szaid}) amu({self.amu})"
 
     # region Properties
     # define readonly properties to disallow changes
@@ -36,14 +44,19 @@ class Isotope:
         return self._symbol
 
     @property
+    def szaid(self) -> int:
+        """Isotope SZA id (read only)."""
+        return self._iso_data[self._SZAID]
+
+    @property
     def zaid(self) -> int:
         """Isotope ZA id (read only)."""
-        return self._zaid
+        return self._iso_data[self._ZAID]
 
     @property
     def amu(self) -> float:
         """Isotope atomic mass [amu] (read only)."""
-        return self._amu
+        return self._iso_data[self._AMU]
 
     @property
     def element(self) -> str:
@@ -51,20 +64,29 @@ class Isotope:
         return self._symbol.split("-")[0]
 
     @property
+    def s(self) -> int:
+        """Metastable state (read only)."""
+        return self._iso_data[self._S]
+
+    @property
     def z(self) -> int:
         """Atomic number (read only)."""
-        return int(self._zaid / 1000)
+        return self._iso_data[self._Z]
 
     @property
     def a(self) -> int:
         """Mass number (read only)."""
-        aa: int = self._zaid % 1000
-        return aa - 400 if self.is_metastable else aa
+        return self._iso_data[self._A]
+
+    @property
+    def za(self) -> int:
+        """z*1000 + a (read only). excludes s, not the same as zaid"""
+        return self._iso_data[self._Z] * 1000 + self._iso_data[self._A]
 
     @property
     def is_metastable(self) -> bool:
         """Is isotope metastable? (read only)."""
-        return self._symbol.lower().endswith("m")
+        return self._iso_data[self._S] > 0
 
     # endregion
 

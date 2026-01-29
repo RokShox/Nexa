@@ -1,6 +1,6 @@
 import sys
 import re
-import nexa.scale.data.zaid as zaid
+from nexa.scale.data.zaid import ScaleZaid
 
 # Deprecated
 
@@ -11,7 +11,7 @@ def main():
 
     filebase = sys.argv[1]
     zones = 5
-    zaid_list = zaid.zaid()
+    zaid_list = ScaleZaid()
 
     lf = {'Bgn': 0, 'End': 1}
  
@@ -52,7 +52,7 @@ def main():
                         else:
                             parts = line.split()
                             isotope = parts[0]
-                            za = zaid_list.get_zaid(isotope)
+                            za = ScaleZaid.get_zaid(isotope)
                             if za:
                                 if not ismissing(za):
                                     concentration = parts[2]

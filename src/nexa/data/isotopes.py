@@ -26,14 +26,14 @@ class Isotopes(dict):
         if not self._initialized:
             self._initialized = True
             # print("initializing Isotopes")
-            p = Path(__file__).resolve().parent.parent / "resources" / "tblMCNP6NuclideMass.yaml"
+            p = Path(__file__).resolve().parent.parent / "resources" / "tblSCALENuclideMass.yaml"
             yaml = YAML()
             raw_dict: Dict[str, List] = yaml.load(p)
             # Store Isotope instances
             for key, value in raw_dict.items():
                 sym = self.__normalize_key(key)
-                iso = Isotope(sym, value[0], value[1])
-                super().__setitem__(sym, iso)
+                iso_data = Isotope(sym, tuple(value))
+                super().__setitem__(sym, iso_data)
 
     def __getitem__(self, key: str) -> Isotope:
         try:
@@ -70,11 +70,17 @@ class Isotopes(dict):
         nkey = re.sub(r"([a-z]+)(\d+)(m?)", r"\1-\2\3", nkey)
         return nkey
 
+    def szaid(self, iso: str) -> int:
+        return self[self.__normalize_key(iso)].szaid
+
     def zaid(self, iso: str) -> int:
         return self[self.__normalize_key(iso)].zaid
 
     def amu(self, iso: str) -> float:
         return self[self.__normalize_key(iso)].amu
+
+    def s(self, iso: str) -> int:
+        return self[self.__normalize_key(iso)].s
 
     def z(self, iso: str) -> int:
         return self[self.__normalize_key(iso)].z
@@ -82,25 +88,36 @@ class Isotopes(dict):
     def a(self, iso: str) -> int:
         return self[self.__normalize_key(iso)].a
 
+    def iso_by_szaid(self, szaid: int) -> Isotope:
+        for iso in self.values():
+            if iso.szaid == szaid:
+                return iso
+        return None
+
     def iso_by_zaid(self, zaid: int) -> Isotope:
         for iso in self.values():
             if iso.zaid == zaid:
                 return iso
         return None
 
+    def iso_by_s(self, s: int) -> List[Isotope]:
+        iso_list = [iso for iso in self.values() if iso.s == s]
+        iso_list.sort(key=lambda x: x.za * 10 + x.s)
+        return iso_list
+
     def iso_by_z(self, z: int) -> List[Isotope]:
         iso_list = [iso for iso in self.values() if iso.z == z]
-        iso_list.sort(key=lambda x: x.zaid)
+        iso_list.sort(key=lambda x: x.za * 10 + x.s)
         return iso_list
 
     def iso_by_a(self, a: int) -> List[Isotope]:
         iso_list = [iso for iso in self.values() if iso.a == a]
-        iso_list.sort(key=lambda x: x.z * 1000 + x.zaid % 1000)
+        iso_list.sort(key=lambda x: x.za * 10 + x.s)
         return iso_list
 
     def iso_by_element(self, element: str) -> List[Isotope]:
         normalized_element = element.lower()
         iso_list = [iso for iso in self.values() if iso.element() == normalized_element]
         # ensure metastable iso listed after ground state iso
-        iso_list.sort(key=lambda x: x.a * 1000 + x.zaid % 1000)
+        iso_list.sort(key=lambda x: x.za * 10 + x.s)
         return iso_list

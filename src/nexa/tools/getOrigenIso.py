@@ -6,10 +6,10 @@ from typing import Dict, List, Tuple
 from pathlib import Path
 import argparse
 
-import nexa.scale.data.zaid as zaid
 from nexa.data import Abundances, Elements, Isotope, Isotopes, LibEndf80, LibEndf81
 from nexa.globals import CompositionMode
 from nexa.material import Constituent
+from nexa.scale.data import ScaleZaid
 from nexa.scale.origen.origen_parser import (
     CaseOverview,
     NuclideConcentrationTable,
@@ -36,8 +36,6 @@ def main():
     out_name = args.file
     case_name = Path(out_name).stem
     
-    zaid_list = zaid.zaid()
-
     reCase: re = re.compile(r'^(?P<series>\w+)(?P<index>\d{2})b(?P<step>\d{2})z(?P<zone>\d{2})d(?P<depl>\d)$')
     match = reCase.match(case_name)
     if match:
@@ -76,13 +74,13 @@ def main():
  
     con: Constituent = Constituent(f"{case_name}Iso", CompositionMode.Atom)
     for isotope, concentration in concentrations.items():
-        za = zaid_list.get_zaid(isotope)
+        za = ScaleZaid.get_zaid(isotope)
         if za:
             if not LibEndf81.is_missing_zaid(za):
                 # Get the last time step concentration
                 con.add(isos[isotope], concentration[-1])
         else:
-            print(f"Unknown isotope '{isotope}' with zaid {za} in file: {out_name}")
+            print(f"Skipping unknown isotope '{isotope}' in file: {out_name}")
     con.seal()
 
     avogadro: float = 0.602214076
@@ -97,7 +95,7 @@ def main():
             nper = 4
             line = "    "
             for i, (iso, mass_frac, atom_frac) in enumerate(con_isos.values()):
-                line += f"{iso.zaid:6}={atom_frac*atom_den:.6e} "
+                line += f"{iso.szaid:>7}={atom_frac*atom_den:.6e} "
                 if (i+1) % nper == 0 or i == len(con_isos)-1:
                     print(line.rstrip(), file=o)
                     line = "    "
