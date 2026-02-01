@@ -1,7 +1,6 @@
 from ruamel.yaml import YAML
 
 from pathlib import Path
-from typing import List, Dict
 
 from nexa.data import Element
 
@@ -41,7 +40,7 @@ class Elements(dict):
             print("initializing Elements")
             p = Path(__file__).resolve().parent.parent / "resources" / "tblElmNames.yaml"
             yaml = YAML()
-            raw_dict: Dict[str, List] = yaml.load(p)
+            raw_dict: dict[str, list] = yaml.load(p)
             # Store Isotope instances
             for key, value in raw_dict.items():
                 sym = self.__normalize_key(key)

@@ -1,4 +1,4 @@
-from typing import List, Optional, Union, TextIO, Dict
+from typing import TextIO
 
 
 class VOLCard:
@@ -19,10 +19,10 @@ class VOLCard:
             no_calculation: If True, includes NO keyword to bypass volume calculations
         """
         self.no_calculation = no_calculation
-        self.volumes: Dict[int, Optional[float]] = {}  # cell_number -> volume (None for unspecified)
+        self.volumes: dict[int, float | None] = {}  # cell_number -> volume (None for unspecified)
         self.max_cell_number = 0
     
-    def set_volume(self, cell_number: int, volume: Optional[float]) -> None:
+    def set_volume(self, cell_number: int, volume: float | None) -> None:
         """
         Set volume for a specific cell.
         
@@ -43,7 +43,7 @@ class VOLCard:
         self.volumes[cell_number] = volume
         self.max_cell_number = max(self.max_cell_number, cell_number)
     
-    def set_volumes(self, volumes: List[Optional[float]]) -> None:
+    def set_volumes(self, volumes: list[float | None]) -> None:
         """
         Set volumes for cells 1, 2, 3, ... in order.
         
@@ -62,7 +62,7 @@ class VOLCard:
         
         self.max_cell_number = len(volumes)
     
-    def get_volume(self, cell_number: int) -> Optional[float]:
+    def get_volume(self, cell_number: int) -> float | None:
         """
         Get volume for a specific cell.
         
@@ -97,7 +97,7 @@ class VOLCard:
         self.volumes.clear()
         self.max_cell_number = 0
     
-    def get_all_volumes(self) -> Dict[int, Optional[float]]:
+    def get_all_volumes(self) -> dict[int, float | None]:
         """Get a copy of all volume specifications."""
         return self.volumes.copy()
     
@@ -113,7 +113,7 @@ class VOLCard:
         """Set whether to bypass volume calculations."""
         self.no_calculation = no_calculation
     
-    def _compress_jumps(self, volume_list: List[Optional[float]]) -> List[str]:
+    def _compress_jumps(self, volume_list: list[float | None]) -> list[str]:
         """
         Compress consecutive None values into jump notation (nJ).
         

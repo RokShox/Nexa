@@ -1,32 +1,33 @@
 import sys
 import os
 from pathlib import Path
-from typing import Dict, List
+import argparse
+
+from nexa.globals import CompositionMode
+from nexa.data import Isotopes, Isotope, Elements, Abundances, LibEndf81
+from nexa.material import Constituent
 from nexa.mcnp.output import MCNPOutputParser
 from nexa.mcnp.output.table210 import Table210Parser, NeutronicsData, MaterialBurnupData, NuclideInventoryData, InventoryTotals, MaterialInventory
 from nexa.mcnp.output.table220 import Table220Parser, SummaryNuclideData, SummaryTotals, SummaryInventory
-from nexa.data import Isotopes, Isotope, Elements, Abundances, LibEndf81
-from nexa.globals import CompositionMode
-from nexa.material import Constituent
 from nexa.mcnp.input.cardM import MaterialCard
 
-if __name__ == "__main__":
+def main():
    
     abund: Abundances = Abundances()
     isos: Isotopes = Isotopes()
     elms: Elements = Elements()
 
     # run_dir = Path(r'D:\Projects\Ampera\Run\v1.0')
-    run_dir = Path(r'D:\Projects\DeepFission\Run\v1.1')
+    run_dir: Path = Path(r'D:\Projects\DeepFission\Run\v1.1')
     os.chdir(run_dir)
 
-    out_name = sys.argv[1] if len(sys.argv) > 1 else print ("Usage: getMcnpIso.py <output_name>") & sys.exit(1)
+    out_name: str = sys.argv[1] if len(sys.argv) > 1 else print ("Usage: getMcnpIso.py <output_name>") & sys.exit(1)
     if not out_name.endswith('o'):
         out_name += 'o'
-    case_name = out_name[:-1]
+    case_name: str = out_name[:-1]
 
     with open(out_name, 'r') as f:
-        sample_lines =  [line.rstrip('\n') for line in f]
+        sample_lines: list[str] =  [line.rstrip('\n') for line in f]
 
     parser = Table220Parser()
     inventories = parser.parse_lines(sample_lines)
@@ -124,3 +125,5 @@ if __name__ == "__main__":
             print(f"c    Material Card for burnup material {mat_id} at step {last_step} aden={aden:10.6e}:", file=o)
             print(mat_card_burn.to_string(), file=o)
 
+if __name__ == "__main__":
+    main()

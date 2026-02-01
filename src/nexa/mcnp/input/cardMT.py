@@ -1,4 +1,4 @@
-from typing import List, TextIO
+from typing import TextIO
 
 
 class MTCard:
@@ -21,7 +21,7 @@ class MTCard:
             raise ValueError("Material number must be between 1 and 99,999,999")
 
         self.material_number = material_number
-        self.sabids: List[str] = []
+        self.sabids: list[str] = []
 
     def add_sabid(self, sabid: str) -> None:
         """
@@ -59,7 +59,7 @@ class MTCard:
         """Remove all S(α,β) dataset identifiers from the card."""
         self.sabids.clear()
 
-    def get_sabids(self) -> List[str]:
+    def get_sabids(self) -> list[str]:
         """Get a copy of the list of S(α,β) dataset identifiers."""
         return self.sabids.copy()
 

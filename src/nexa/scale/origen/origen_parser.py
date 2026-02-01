@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Self, Tuple
+from typing import Self
 
 
 class LookFor(Enum):
@@ -92,14 +92,14 @@ class NuclideConcentrationTable:
     case_id: str  # e.g., "2"
     case_index: int  # e.g., 2
     total_cases: int  # e.g., 2
-    time_steps: List[float] = field(default_factory=list)
-    concentrations: Dict[str, List[float]] = field(
+    time_steps: list[float] = field(default_factory=list)
+    concentrations: dict[str, list[float]] = field(
         default_factory=dict
     )  # isotope -> concentrations
-    time_units: Optional[OrigenTimeUnits] = None  # (unit, conversion_factor)
-    conc_units: Optional[OrigenConcentrationUnits] = None  # (name, abbrev)
-    cutoff: Optional[Tuple[str, int, float]] = None  # (type, step, value)
-    totals: List[float] = field(default_factory=list)  # totals for each time step
+    time_units: OrigenTimeUnits | None = None  # (unit, conversion_factor)
+    conc_units: OrigenConcentrationUnits | None = None  # (name, abbrev)
+    cutoff: tuple[str, int, float] | None = None  # (type, step, value)
+    totals: list[float] = field(default_factory=list)  # totals for each time step
 
     def __str__(self):
         return (
@@ -124,13 +124,13 @@ class OrigenConcentrationData:
     case_id: str
     case_index: int
     total_cases: int # This is redundant but the data is in each table
-    time_units: Optional[OrigenTimeUnits] = None  # (unit, conversion_factor)
-    conc_units: Optional[OrigenConcentrationUnits] = None  # (name, abbrev)
-    cutoff: Optional[Tuple[str, int, float]] = None  # (type, step, value)
-    light_elements: Optional[NuclideConcentrationTable] = None
-    actinides: Optional[NuclideConcentrationTable] = None
-    fission_products: Optional[NuclideConcentrationTable] = None
-    total: Optional[NuclideConcentrationTable] = None
+    time_units: OrigenTimeUnits | None = None  # (unit, conversion_factor)
+    conc_units: OrigenConcentrationUnits | None = None  # (name, abbrev)
+    cutoff: tuple[str, int, float] | None = None  # (type, step, value)
+    light_elements: NuclideConcentrationTable | None = None
+    actinides: NuclideConcentrationTable | None = None
+    fission_products: NuclideConcentrationTable | None = None
+    total: NuclideConcentrationTable | None = None
 
     def __str__(self):
         return (
@@ -142,7 +142,7 @@ class OrigenConcentrationData:
             f"  Total:\n{self.total if self.total is not None else 'None'}\n"
         )
 
-    def nuclide_table(self, nuclide_type: NuclideType) -> Optional[NuclideConcentrationTable]:
+    def nuclide_table(self, nuclide_type: NuclideType) -> NuclideConcentrationTable | None:
         """Get the nuclide concentration table for the specified nuclide type."""
 
         if nuclide_type == NuclideType.LIGHT_ELEMENTS:
@@ -189,7 +189,7 @@ class CaseStep:
     fluence: float
     power_mw: float
     energy_mwd: float
-    time_units: Optional[OrigenTimeUnits] = None
+    time_units: OrigenTimeUnits | None = None
 
     def __str__(self):
         return (
@@ -207,22 +207,22 @@ class CaseOverview:
     case_index: int
     total_cases: int
     title: str = ""
-    time_units: Optional[OrigenTimeUnits] = None
+    time_units: OrigenTimeUnits | None = None
     # Do not use an index into steps as an index into concentrations table, as the latter includes t=0
     # index i into steps corresponds to step i+1 since it is zero-based
     # concentrations at the end of index i into steps are at index i+1 in concentrations
     # concentrations at the beginning of index i into steps are at index i in concentrations
     # maybe to use step number as index into steps (i.e., 1-based)
     # Better to use time_steps in NuclideConcentrationTable for finding appropriate concentration
-    steps: List[CaseStep] = field(default_factory=list)
-    concentrations: List[OrigenConcentrationData] = field(default_factory=list)
+    steps: list[CaseStep] = field(default_factory=list)
+    concentrations: list[OrigenConcentrationData] = field(default_factory=list)
 
     def __str__(self):
         return f"Case '{self.case_id}' (#{self.case_index}/{self.total_cases}): {self.title}"
 
     def concentration_data_by_units(
         self, conc_units: OrigenConcentrationUnits
-    ) -> Optional[OrigenConcentrationData]:
+    ) -> OrigenConcentrationData | None:
         """Get the concentration data for the specified concentration units."""
 
         for conc_data in self.concentrations:
@@ -234,9 +234,9 @@ class OrigenParser:
     """Parser for ORIGEN nuclide concentration tables."""
 
     def __init__(self):
-        self.current_case: Optional[CaseOverview] = None
-        self.current_data: Optional[OrigenConcentrationData] = None
-        self.current_table: Optional[NuclideConcentrationTable] = None
+        self.current_case: CaseOverview | None = None
+        self.current_data: OrigenConcentrationData | None = None
+        self.current_table: NuclideConcentrationTable | None = None
 
     def safe_float(self, value_str: str) -> float:
         """Convert string to float, handling missing 'E' in scientific notation."""
@@ -246,7 +246,7 @@ class OrigenParser:
         return float(value_str)
 
 
-    def parse_lines(self, lines: List[str]) -> List[CaseOverview]:
+    def parse_lines(self, lines: list[str]) -> list[CaseOverview]:
         """
         Parse lines from ORIGEN output containing nuclide concentration tables.
 
@@ -257,7 +257,7 @@ class OrigenParser:
             List[CaseOverview] with parsed data
         """
 
-        self.cases: List[CaseOverview] = []
+        self.cases: list[CaseOverview] = []
         self.current_case = None
         self.current_data = None
         self.current_table = None
@@ -535,7 +535,7 @@ class OrigenParser:
 if __name__ == "__main__":
     import sys
 
-    cases: List[CaseOverview]
+    cases: list[CaseOverview]
     case: CaseOverview
 
     # Example usage

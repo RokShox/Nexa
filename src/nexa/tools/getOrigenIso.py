@@ -2,12 +2,11 @@ import os
 import re
 import sys
 import code
-from typing import Dict, List, Tuple
 from pathlib import Path
 import argparse
 
-from nexa.data import Abundances, Elements, Isotope, Isotopes, LibEndf80, LibEndf81
 from nexa.globals import CompositionMode
+from nexa.data import Abundances, Elements, Isotope, Isotopes, LibEndf80, LibEndf81
 from nexa.material import Constituent
 from nexa.scale.data import ScaleZaid
 from nexa.scale.origen.origen_parser import (
@@ -98,7 +97,7 @@ def main():
         origen_iso_name = f"{case_series}{case_calc}{case_index:02d}b{next_step:02d}d{next_depl}z{case_zone:02d}Isos"
         with open(f"{origen_iso_name}", "w", encoding="utf-8") as o:
             print(f"Origen isotope file {origen_iso_name} for next step generated from {out_name}")
-            con_isos: Dict[str, Tuple[Isotope, float, float]] = con_origen.isotopes()
+            con_isos: dict[str, tuple[Isotope, float, float]] = con_origen.isotopes()
             nper = 4
             line = "    "
             for i, (iso, mass_frac, atom_frac) in enumerate(con_isos.values()):

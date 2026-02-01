@@ -1,4 +1,4 @@
-from typing import List, Self, Tuple
+from typing import Self
 from copy import deepcopy
 from nexa.globals.enum import CompositionMode
 
@@ -22,13 +22,13 @@ class Isotope:
     _A = 4
     _AMU = 5
     # (szaid, mcnp_zaid, s, z, a, amu)
-    _iso_data: Tuple[int, int, int, int, int, float] = ()
+    _iso_data: tuple[int, int, int, int, int, float] = ()
     _symbol: str = ""
 
-    def __init__(self, symbol: str, iso_data: Tuple[int, int, int, int, int, float]) -> None:
+    def __init__(self, symbol: str, iso_data: tuple[int, int, int, int, int, float]) -> None:
         """All initialization is done in the constructor.  No updates are allowed."""
         self._symbol: str = symbol
-        self._iso_data: Tuple[int, int, int, int, int, float] = iso_data
+        self._iso_data: tuple[int, int, int, int, int, float] = iso_data
 
     def __str__(self):
         return f"symbol({self.symbol}) z({self.z}) a({self.a}) szaid({self.szaid}) amu({self.amu})"
@@ -126,7 +126,7 @@ class Isotope:
         iso: Isotope = deepcopy(self)
         return iso
 
-    def table(self) -> List[List[str | float]]:
+    def table(self) -> list[list[str | float]]:
         tbl = []
         tbl.append([])
         tbl[0] = []

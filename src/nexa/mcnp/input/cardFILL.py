@@ -1,6 +1,6 @@
-from typing import List, Optional, Union, TextIO, Dict, Tuple, Any
+from typing import TextIO, Any
 import re
-from cardTRCL import TRCLCard
+from .cardTRCL import TRCLCard
 
 
 class FILLCard:
@@ -19,12 +19,12 @@ class FILLCard:
     
     def __init__(self):
         """Initialize a FILL card."""
-        self.fill_assignments: Dict[int, 'FillSpecification'] = {}  # cell_number -> fill_spec
+        self.fill_assignments: dict[int, 'FillSpecification'] = {}  # cell_number -> fill_spec
         self.max_cell_number = 0
         self.use_degrees = False  # For *FILL form
     
     def set_simple_fill(self, cell_number: int, universe_number: int, 
-                       transformation: Optional[Union[int, TRCLCard, List[float]]] = None) -> None:
+                       transformation: int | TRCLCard | list[float] | None = None) -> None:
         """
         Set simple universe fill for a cell.
         
@@ -47,9 +47,9 @@ class FILLCard:
         self.max_cell_number = max(self.max_cell_number, cell_number)
     
     def set_lattice_fill(self, cell_number: int, 
-                        i_range: Tuple[int, int], j_range: Tuple[int, int], k_range: Tuple[int, int],
-                        universe_array: List[List[List[int]]], 
-                        transformations: Optional[Dict[Tuple[int, int, int], Union[int, TRCLCard, List[float]]]] = None) -> None:
+                        i_range: tuple[int, int], j_range: tuple[int, int], k_range: tuple[int, int],
+                        universe_array: list[list[list[int]]], 
+                        transformations: dict[tuple[int, int, int], int | TRCLCard | list[float]] | None = None) -> None:
         """
         Set lattice array fill for a cell.
         
@@ -108,7 +108,7 @@ class FILLCard:
         self.fill_assignments[cell_number] = fill_spec
         self.max_cell_number = max(self.max_cell_number, cell_number)
     
-    def set_fill_assignments(self, assignments: List[int]) -> None:
+    def set_fill_assignments(self, assignments: list[int]) -> None:
         """
         Set fill assignments for cells 1, 2, 3, ... in order.
         
@@ -128,7 +128,7 @@ class FILLCard:
         
         self.max_cell_number = len(assignments)
     
-    def get_fill_specification(self, cell_number: int) -> Optional['FillSpecification']:
+    def get_fill_specification(self, cell_number: int) -> 'FillSpecification' | None:
         """
         Get fill specification for a specific cell.
         
@@ -188,7 +188,7 @@ class FILLCard:
         self.fill_assignments.clear()
         self.max_cell_number = 0
     
-    def get_all_assignments(self) -> Dict[int, 'FillSpecification']:
+    def get_all_assignments(self) -> dict[int, 'FillSpecification']:
         """Get a copy of all fill assignments."""
         return self.fill_assignments.copy()
     
@@ -200,7 +200,7 @@ class FILLCard:
         """Check if any fill assignments are defined."""
         return len(self.fill_assignments) > 0
     
-    def get_filled_cells(self) -> List[int]:
+    def get_filled_cells(self) -> list[int]:
         """Get all cells with fill assignments."""
         return list(self.fill_assignments.keys())
     
@@ -208,7 +208,7 @@ class FILLCard:
         """Set whether to use degrees for transformations (*FILL form)."""
         self.use_degrees = use_degrees
     
-    def _compress_assignments(self, assignment_list: List[int]) -> List[str]:
+    def _compress_assignments(self, assignment_list: list[int]) -> list[str]:
         """
         Compress consecutive identical assignments using jump notation.
         
@@ -348,7 +348,7 @@ class FILLCard:
         """
         file.write(self.to_cell_parameter_string(cell_number) + '\n')
     
-    def validate_fill_setup(self) -> List[str]:
+    def validate_fill_setup(self) -> list[str]:
         """
         Validate fill setup for potential issues.
         
@@ -402,7 +402,7 @@ class SimpleFillSpecification(FillSpecification):
     """Simple universe fill specification."""
     
     def __init__(self, universe_number: int, 
-                 transformation: Optional[Union[int, TRCLCard, List[float]]] = None):
+                 transformation: int | TRCLCard | list[float] | None = None):
         """
         Initialize simple fill specification.
         
@@ -440,9 +440,9 @@ class SimpleFillSpecification(FillSpecification):
 class LatticeFillSpecification(FillSpecification):
     """Lattice array fill specification."""
     
-    def __init__(self, i_range: Tuple[int, int], j_range: Tuple[int, int], k_range: Tuple[int, int],
-                 universe_array: List[List[List[int]]],
-                 transformations: Optional[Dict[Tuple[int, int, int], Union[int, TRCLCard, List[float]]]] = None):
+    def __init__(self, i_range: tuple[int, int], j_range: tuple[int, int], k_range: tuple[int, int],
+                 universe_array: list[list[list[int]]],
+                 transformations: dict[tuple[int, int, int], int | TRCLCard | list[float]] | None = None):
         """
         Initialize lattice fill specification.
         
@@ -470,7 +470,7 @@ class LatticeFillSpecification(FillSpecification):
         
         return self.universe_array[i - i1][j - j1][k - k1]
     
-    def get_all_universes(self) -> List[int]:
+    def get_all_universes(self) -> list[int]:
         """Get all universe numbers in the array."""
         universes = []
         for i_slice in self.universe_array:

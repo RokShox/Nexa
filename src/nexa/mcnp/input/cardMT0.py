@@ -1,4 +1,4 @@
-from typing import List, Dict, Tuple, TextIO, Optional
+from typing import TextIO
 
 
 class MT0Card:
@@ -18,7 +18,7 @@ class MT0Card:
         
         The MT0 card contains pairs of (SABID, ZAID) associations.
         """
-        self.sabid_zaid_pairs: List[Tuple[str, str]] = []
+        self.sabid_zaid_pairs: list[tuple[str, str]] = []
     
     def add_association(self, sabid: str, zaid: str) -> None:
         """
@@ -89,18 +89,18 @@ class MT0Card:
         """Remove all SABID-ZAID associations from the card."""
         self.sabid_zaid_pairs.clear()
     
-    def get_associations(self) -> List[Tuple[str, str]]:
+    def get_associations(self) -> list[tuple[str, str]]:
         """Get a copy of all SABID-ZAID associations."""
         return self.sabid_zaid_pairs.copy()
     
-    def get_zaid_for_sabid(self, sabid: str) -> Optional[str]:
+    def get_zaid_for_sabid(self, sabid: str) -> str | None:
         """Get the ZAID associated with a specific SABID."""
         for existing_sabid, zaid in self.sabid_zaid_pairs:
             if existing_sabid == sabid:
                 return zaid
         return None
     
-    def get_sabid_for_zaid(self, zaid: str) -> Optional[str]:
+    def get_sabid_for_zaid(self, zaid: str) -> str | None:
         """Get the SABID associated with a specific ZAID."""
         for sabid, existing_zaid in self.sabid_zaid_pairs:
             if existing_zaid == zaid:
@@ -188,7 +188,7 @@ class MT0Card:
         """
         file.write(self.to_string(line_length) + '\n')
     
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> dict[str, str]:
         """
         Convert associations to a dictionary mapping SABID to ZAID.
         
@@ -197,7 +197,7 @@ class MT0Card:
         """
         return {sabid: zaid for sabid, zaid in self.sabid_zaid_pairs}
     
-    def from_dict(self, associations: Dict[str, str]) -> None:
+    def from_dict(self, associations: dict[str, str]) -> None:
         """
         Load associations from a dictionary.
         

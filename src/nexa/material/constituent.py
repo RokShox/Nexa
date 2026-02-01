@@ -2,7 +2,7 @@ import re
 import sys
 from copy import deepcopy
 from io import StringIO
-from typing import Dict, List, Self, Tuple
+from typing import Self
 
 # from ruamel.yaml import YAML
 from nexa.data.isotope import Isotope
@@ -35,7 +35,7 @@ class Constituent:
         self._name: str = name
         self._level: int = None
         self._sealed: bool = False
-        self._composition: Dict[str, List[IConstituent, float, float]] = {}
+        self._composition: dict[str, list[Self, float, float]] = {}
         self._a_value: float = 0.0
         self._mode: CompositionMode = mode
 
@@ -190,7 +190,7 @@ class Constituent:
             raise ValueError(f"Constituent {name} not found")
         return self._composition[name][mode]
 
-    def constituents(self) -> List[IConstituent]:
+    def constituents(self) -> list[IConstituent]:
         """Get list of constituents"""
         return [value[0] for value in self._composition.values()]
 
@@ -200,13 +200,13 @@ class Constituent:
             raise ValueError(f"Constituent {name} not found")
         return self._composition[name][0]
 
-    def isotopes(self) -> Dict[str, Tuple[Isotope, float, float]]:
+    def isotopes(self) -> dict[str, tuple[Isotope, float, float]]:
         """Get isotopes dictionary"""
         con: IConstituent = self
         if self.level != 1:
             con = self.flatten()
 
-        isos: Dict[str, Tuple[Isotope, float, float]] = {}
+        isos: dict[str, tuple[Isotope, float, float]] = {}
         for iso in con.constituents():
             iso_frac_mass = con.mass_fraction(iso.name)
             iso_frac_atom = con.atom_fraction(iso.name)
@@ -291,7 +291,7 @@ class Constituent:
     # endregion
 
     # region view methods
-    def table(self) -> List[List[str | float]]:
+    def table(self) -> list[list[str | float]]:
         if not self.sealed:
             raise RuntimeError("Constituent not sealed")
 

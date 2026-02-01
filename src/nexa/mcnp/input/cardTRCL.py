@@ -1,6 +1,6 @@
-from typing import List, Optional, Union, TextIO, Tuple
+from typing import TextIO
 import math
-from cardTR import TRCard
+from .cardTR import TRCard
 
 
 class TRCLCard:
@@ -15,9 +15,9 @@ class TRCLCard:
     positioning universes within container cells.
     """
     
-    def __init__(self, transformation_reference: Optional[int] = None,
-                 displacement: Optional[List[float]] = None,
-                 rotation_matrix: Optional[List[List[float]]] = None,
+    def __init__(self, transformation_reference: int | None = None,
+                 displacement: list[float] | None = None,
+                 rotation_matrix: list[list[float]] | None = None,
                  displacement_origin: int = 1, use_degrees: bool = False):
         """
         Initialize a TRCL parameter.
@@ -78,7 +78,7 @@ class TRCLCard:
         except (ValueError, TypeError):
             raise ValueError("Displacement components must be numeric")
     
-    def _process_rotation_matrix(self, matrix_input: List[List[float]]) -> Tuple[List[List[float]], str]:
+    def _process_rotation_matrix(self, matrix_input: list[list[float]]) -> tuple[list[list[float]], str]:
         """
         Process rotation matrix input and complete it if partially specified.
         Uses the same logic as TRCard.
@@ -102,8 +102,8 @@ class TRCLCard:
         return cls(transformation_reference=transformation_number, use_degrees=use_degrees)
     
     @classmethod
-    def create_explicit(cls, displacement: Optional[List[float]] = None,
-                       rotation_matrix: Optional[List[List[float]]] = None,
+    def create_explicit(cls, displacement: list[float] | None = None,
+                       rotation_matrix: list[list[float]] | None = None,
                        displacement_origin: int = 1, use_degrees: bool = False) -> 'TRCLCard':
         """
         Create a TRCL parameter with explicit transformation.
@@ -291,7 +291,7 @@ class TRCLCard:
         
         return desc
     
-    def convert_to_tr_card(self, transformation_number: int) -> Optional[TRCard]:
+    def convert_to_tr_card(self, transformation_number: int) -> TRCard | None:
         """
         Convert explicit TRCL to equivalent TR card.
         
@@ -381,7 +381,7 @@ if __name__ == "__main__":
     
     # Example 7: Using in cell card context
     print("Example 7: Cell card usage")
-    from cardCell import CellCard
+    from .cardCell import CellCard
     
     # Create a cell with TRCL parameter
     cell = CellCard(1, material_number=1, density=-1.0, geometry="1 -2 3")

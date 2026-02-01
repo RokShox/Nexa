@@ -1,4 +1,4 @@
-from typing import List, Optional, TextIO, Union
+from typing import TextIO
 
 
 class NONUCard:
@@ -11,7 +11,7 @@ class NONUCard:
     in transport.
     """
     
-    def __init__(self, cell_values: Optional[Union[int, List[Optional[int]]]] = None):
+    def __init__(self, cell_values: int | list[int | None] | None = None):
         """
         Initialize a NONU card.
         
@@ -19,7 +19,7 @@ class NONUCard:
             cell_values: Can be:
                 - None: Apply default behavior (fission as capture with gammas) to all cells
                 - int: Single value to apply to all cells
-                - List[Optional[int]]: Values for each cell (None for blank entries)
+                - list[None | int]: Values for each cell (None for blank entries)
         """
         if cell_values is None:
             self.cell_values = []  # Empty list means apply default to all cells
@@ -33,13 +33,13 @@ class NONUCard:
                     raise ValueError("NONU values must be 0, 1, 2, or None (blank)")
             self.cell_values = cell_values.copy()
         else:
-            raise ValueError("cell_values must be None, int, or List[Optional[int]]")
+            raise ValueError("cell_values must be None, int, or list[None | int]")
     
     def _is_valid_value(self, value: int) -> bool:
         """Check if a NONU value is valid (0, 1, or 2)."""
         return value in [0, 1, 2]
     
-    def set_single_value(self, value: Optional[int]) -> None:
+    def set_single_value(self, value: int | None) -> None:
         """
         Set a single value to apply to all cells.
         
@@ -54,7 +54,7 @@ class NONUCard:
         else:
             self.cell_values = [value]
     
-    def set_cell_values(self, values: List[Optional[int]]) -> None:
+    def set_cell_values(self, values: list[int | None]) -> None:
         """
         Set values for individual cells.
         
@@ -67,7 +67,7 @@ class NONUCard:
         
         self.cell_values = values.copy()
     
-    def add_cell_value(self, value: Optional[int]) -> None:
+    def add_cell_value(self, value: int | None) -> None:
         """
         Add a value for an additional cell.
         
@@ -79,7 +79,7 @@ class NONUCard:
         
         self.cell_values.append(value)
     
-    def get_cell_values(self) -> List[Optional[int]]:
+    def get_cell_values(self) -> list[int | None]:
         """Get a copy of the cell values list."""
         return self.cell_values.copy()
     
@@ -95,13 +95,13 @@ class NONUCard:
         """Check if the card has a single value for all cells."""
         return len(self.cell_values) == 1
     
-    def get_single_value(self) -> Optional[int]:
+    def get_single_value(self) -> int | None:
         """Get the single value if card has only one value."""
         if self.has_single_value():
             return self.cell_values[0]
         return None
     
-    def set_fission_as_capture_with_gammas(self, cell_index: Optional[int] = None) -> None:
+    def set_fission_as_capture_with_gammas(self, cell_index: int | None = None) -> None:
         """
         Set fission to be treated as capture with gammas produced (value = 0).
         
@@ -117,7 +117,7 @@ class NONUCard:
                     self.cell_values.append(None)
             self.cell_values[cell_index] = 0
     
-    def set_fission_as_real(self, cell_index: Optional[int] = None) -> None:
+    def set_fission_as_real(self, cell_index: int | None = None) -> None:
         """
         Set fission to be treated as real fission (value = 1).
         
@@ -133,7 +133,7 @@ class NONUCard:
                     self.cell_values.append(None)
             self.cell_values[cell_index] = 1
     
-    def set_fission_as_capture_no_gammas(self, cell_index: Optional[int] = None) -> None:
+    def set_fission_as_capture_no_gammas(self, cell_index: int | None = None) -> None:
         """
         Set fission to be treated as capture without gammas (value = 2).
         This is typically used with SSR for fission source problems.
@@ -150,7 +150,7 @@ class NONUCard:
                     self.cell_values.append(None)
             self.cell_values[cell_index] = 2
     
-    def _format_value(self, value: Optional[int]) -> str:
+    def _format_value(self, value: int | None) -> str:
         """Format a single value for output."""
         if value is None:
             return ""  # Blank entry

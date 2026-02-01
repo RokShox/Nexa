@@ -2,7 +2,8 @@ import re
 import sys
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Self, Tuple
+# Still need typing for Self
+from typing import Self
 
 from nexa.mcnp.data import McnpParticleType, McnpParticleTypes, McnpTallyBinEnum
 from nexa.util import MultiDimIterator
@@ -72,17 +73,17 @@ class MctalTally:
     """Represents an MCNP tally in MCTAL file"""
 
     tally_num: int = 0
-    particles: List[McnpParticleType] = field(default_factory=list)
+    particles: list[McnpParticleType] = field(default_factory=list)
     detector_type: DetectorType = DetectorType.NONE
     modifier_type: TallyModifierType = TallyModifierType.NONE
     # tuple is (McnpTallyBinEnum, bin count, bin qual, bin data)
-    bin: Dict[str, Tuple[Enum, int, str, List[int | float]]] = field(default_factory=dict)
-    fc_data: List[str] = field(default_factory=list)
+    bin: dict[str, tuple[Enum, int, str, list[int | float]]] = field(default_factory=dict)
+    fc_data: list[str] = field(default_factory=list)
     # tuple is (value, uncertainty)
-    vals_data: List[Tuple[float, float]] = field(default_factory=list)
+    vals_data: list[tuple[float, float]] = field(default_factory=list)
     # tuple is (nps, mean, error, fom)
-    tfc_data: List[Tuple[int, float, float, float]] = field(default_factory=list)
-    tfc_bin: Tuple[int, int, int, int, int, int, int, int] = field(default_factory=tuple)
+    tfc_data: list[tuple[int, float, float, float]] = field(default_factory=list)
+    tfc_bin: tuple[int, int, int, int, int, int, int, int] = field(default_factory=tuple)
 
     def total_vals(self) -> int:
         """Calculate total number of bins across all bin types."""
@@ -91,7 +92,7 @@ class MctalTally:
             total *= bin_tuple[1] if bin_tuple[1] > 0 else 1
         return total
 
-    def value(self, indices: Tuple[int, int, int, int, int, int, int, int]) -> Tuple[float, float]:
+    def value(self, indices: tuple[int, int, int, int, int, int, int, int]) -> tuple[float, float]:
         """Get value and uncertainty for given bin indices.
 
         indices: List of indices corresponding to each bin type in order of bin dict
@@ -152,8 +153,8 @@ class MctalOverview:
     nps: int = 0
     rnr: int = 0
     title: str = ""
-    tally_nums: List[int] = field(default_factory=list)
-    tallies: Dict[int, MctalTally] = field(default_factory=dict)
+    tally_nums: list[int] = field(default_factory=list)
+    tallies: dict[int, MctalTally] = field(default_factory=dict)
 
     def __str__(self) -> str:
         return (
@@ -177,7 +178,7 @@ class MctalParser:
     def __init__(self):
         self._current_tally: MctalTally = None
 
-    def parse_lines(self, lines: List[str]) -> MctalOverview:
+    def parse_lines(self, lines: list[str]) -> MctalOverview:
         """Parse MCNP MCTAL file"""
 
         lf: LookFor = LookFor.HEAD
@@ -259,7 +260,7 @@ class MctalParser:
                         )
                         # Check if particles can be determined from tally_particle or if on next line
                         if tally_particle > 0:
-                            particles: List[McnpParticleType] = []
+                            particles: list[McnpParticleType] = []
                             num = tally_particle
                             for i in range(3):
                                 if num % 2 == 1:
@@ -277,7 +278,7 @@ class MctalParser:
                     # ex: " 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
                     parts = line.strip().split()
                     if len(parts) == McnpParticleTypes.num_particles:
-                        particles: List[McnpParticleType] = []
+                        particles: list[McnpParticleType] = []
                         for part in parts:
                             try:
                                 ipt = int(part)

@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Dict
 
 from ruamel.yaml import YAML
 
@@ -41,7 +40,7 @@ class Abundances(dict):
             print("initializing Abundances")
             p = Path(__file__).resolve().parent.parent / "resources" / "tblNatIso.yaml"
             yaml = YAML()
-            raw_dict: Dict[str, Dict[str, float]] = yaml.load(p)
+            raw_dict: dict[str, dict[str, float]] = yaml.load(p)
 
             # Store instances
             for elm_sym, iso_dict in raw_dict.items():

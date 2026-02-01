@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, TextIO, Tuple, Union
+from typing import TextIO
 
 from nexa.data import Abundances, Elements, Isotope, Isotopes, LibEndf81
 from nexa.globals import CompositionMode
@@ -15,7 +15,7 @@ class MaterialCard:
     - Optional keywords for library specifications and other parameters
     """
 
-    def __init__(self, mat_id: int, constituent: Optional[Constituent] = None):
+    def __init__(self, mat_id: int, constituent: Constituent | None = None):
         """
         Initialize a material card.
 
@@ -26,12 +26,11 @@ class MaterialCard:
             raise ValueError("Material number must be between 0 and 99,999,999")
 
         self.material_number = mat_id
-        self._constituent: Constituent = constituent
-        self.keywords: Dict[str, Union[str, int, float, List[float]]] = {}
+        self._constituent: Constituent | None = constituent
+        self.keywords: dict[str, str | int | float | list[float]] = {}
 
         # Track fraction type to ensure consistency
-        self._fraction_type: Optional[str] = None  # 'atomic' or 'weight'
-
+        self._fraction_type: str | None = None  # 'atomic' or 'weight'
     def constituent(self, con: Constituent) -> None:
         """
         Set the material constituent.
@@ -98,7 +97,7 @@ class MaterialCard:
         else:
             return f"{fraction:.6e}"
 
-    def _format_keyword_value(self, key: str, value: Union[str, int, float, List[float]]) -> str:
+    def _format_keyword_value(self, key: str, value: str | int | float | list[float]) -> str:
         """Format a keyword-value pair."""
         if isinstance(value, str):
             return f"{key}={value}"
@@ -142,7 +141,7 @@ class MaterialCard:
         lines.append(current_line)
 
         # Add isotopes
-        isos: Dict[str, Tuple[Isotope, float, float]] = self._constituent.isotopes()
+        isos: dict[str, tuple[Isotope, float, float]] = self._constituent.isotopes()
 
         for iso_name, value in isos.items():
             iso = value[0]

@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Dict, Optional, Tuple
 
 from ruamel.yaml import YAML
 
@@ -10,16 +9,16 @@ class LibEndf81:
     Disallows instantiation. Use class methods only.
     """
 
-    _endf81_sabid: Dict[str, Tuple[float, float]] = {}
+    _endf81_sabid: dict[str, tuple[float, float]] = {}
     p = Path(__file__).resolve().parent.parent / "resources" / "tblEndf81SaB.yaml"
     yaml = YAML()
-    raw_dict: Dict[str, Tuple[float, float]] = yaml.load(p)
+    raw_dict: dict[str, tuple[float, float]] = yaml.load(p)
     # Store sabids
     for key, entry in raw_dict.items():
         val = tuple(entry)
         _endf81_sabid[key.strip().lower()] = val
 
-    _endf81_ext: Dict[str, float] = {
+    _endf81_ext: dict[str, float] = {
         "15c": 0.10,
         "16c": 233.15,
         "17c": 273.15,
@@ -111,7 +110,7 @@ class LibEndf81:
         return cls.ext_by_tempK(tempK)
 
     @classmethod
-    def sabid_by_tempMeV(cls, base: str, tempMeV: float) -> Optional[str]:
+    def sabid_by_tempMeV(cls, base: str, tempMeV: float) -> str | None:
         """Get SABID by temperature in MeV."""
 
         filtered = sorted(
@@ -131,7 +130,7 @@ class LibEndf81:
         return prev_sabid
 
     @classmethod
-    def sabid_by_tempK(cls, base: str, tempK: float) -> Optional[str]:
+    def sabid_by_tempK(cls, base: str, tempK: float) -> str | None:
         """Get SABID by temperature in K."""
 
         filtered = sorted(
@@ -151,7 +150,7 @@ class LibEndf81:
         return prev_sabid
 
     @classmethod
-    def sabid_by_tempC(cls, base: str, temp: float) -> Optional[str]:
+    def sabid_by_tempC(cls, base: str, temp: float) -> str | None:
         """Get SABID by temperature in C."""
 
         tempK = temp + 273.15

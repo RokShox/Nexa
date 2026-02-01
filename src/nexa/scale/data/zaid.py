@@ -1,4 +1,4 @@
-from typing import Dict
+
 
 
 class ScaleZaid:
@@ -10,7 +10,7 @@ class ScaleZaid:
     # def __str__(self):
     #     return f"Zaid(name='{self.name}', atomic_number={self.atomic_number}, mass_number={self.mass_number})"
 
-    _zaid: Dict[str, int] = {
+    _zaid: dict[str, int] = {
         '1/vabsorber' : 999,
         'ac' : 89000,
         'ac-206' : 89206,

@@ -1,5 +1,4 @@
 import re
-from typing import List, Dict, Optional
 from dataclasses import dataclass, field
 
 
@@ -18,22 +17,22 @@ class IsotopeData:
 class CrossSectionFile:
     """Data class representing a cross-section data file and its isotopes."""
     filename: str
-    isotopes: List[IsotopeData] = field(default_factory=list)
+    isotopes: list[IsotopeData] = field(default_factory=list)
 
 
 class Table100Parser:
     """Parser for MCNP output Table 100 - Cross-section tables."""
     
     def __init__(self):
-        self.xsdir_path: Optional[str] = None
-        self.cross_section_files: List[CrossSectionFile] = []
-        self.isotopes: Dict[str, IsotopeData] = {}  # zaid_library -> IsotopeData
+        self.xsdir_path: str | None = None
+        self.cross_section_files: list[CrossSectionFile] = []
+        self.isotopes: dict[str, IsotopeData] = {}  # zaid_library -> IsotopeData
         self._header_found = False
         self._current_file = None
         self._current_isotope = None
         self._collecting_description = False
     
-    def parse_lines(self, lines: List[str]) -> Dict[str, IsotopeData]:
+    def parse_lines(self, lines: list[str]) -> dict[str, IsotopeData]:
         """
         Parse lines from MCNP output containing Table 100 data.
         
@@ -98,7 +97,7 @@ class Table100Parser:
         
         return self.isotopes
     
-    def _finalize_current_isotope(self):
+    def _finalize_current_isotope(self) -> None:
         """Finalize the current isotope being processed."""
         if self._current_isotope and self._current_file:
             self._current_file.isotopes.append(self._current_isotope)
@@ -136,7 +135,7 @@ class Table100Parser:
         """Check if line contains 'tables from file' header."""
         return "tables from file" in line.lower()
     
-    def _extract_filename(self, line: str) -> Optional[str]:
+    def _extract_filename(self, line: str) -> str | None:
         """Extract filename from 'tables from file' line."""
         match = re.search(r"tables from file\s+(.+)", line, re.IGNORECASE)
         return match.group(1).strip() if match else None
@@ -156,7 +155,7 @@ class Table100Parser:
         
         return False
     
-    def _parse_isotope_data_line(self, line: str) -> Optional[IsotopeData]:
+    def _parse_isotope_data_line(self, line: str) -> IsotopeData | None:
         """Parse isotope data line (fixed format)."""
         try:
             # Fixed format parsing - positions based on the example
@@ -211,26 +210,26 @@ class Table100Parser:
         
         return True
     
-    def get_isotope_data(self, zaid_library: str) -> Optional[IsotopeData]:
+    def get_isotope_data(self, zaid_library: str) -> IsotopeData | None:
         """Get data for a specific isotope."""
         return self.isotopes.get(zaid_library)
     
-    def get_all_isotopes(self) -> List[str]:
+    def get_all_isotopes(self) -> list[str]:
         """Get list of all isotope identifiers."""
         return sorted(list(self.isotopes.keys()))
     
-    def get_isotopes_from_file(self, filename: str) -> List[IsotopeData]:
+    def get_isotopes_from_file(self, filename: str) -> list[IsotopeData]:
         """Get all isotopes from a specific file."""
         for cs_file in self.cross_section_files:
             if cs_file.filename == filename:
                 return cs_file.isotopes
         return []
     
-    def get_all_files(self) -> List[str]:
+    def get_all_files(self) -> list[str]:
         """Get list of all cross-section data files."""
         return [cs_file.filename for cs_file in self.cross_section_files]
     
-    def get_isotopes_by_zaid(self, zaid: int) -> List[IsotopeData]:
+    def get_isotopes_by_zaid(self, zaid: int) -> list[IsotopeData]:
         """Get all isotopes with a specific ZAID (different libraries)."""
         result = []
         for isotope in self.isotopes.values():
@@ -243,7 +242,7 @@ class Table100Parser:
                 continue
         return result
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert parsed data to dictionary."""
         return {
             'xsdir_path': self.xsdir_path,

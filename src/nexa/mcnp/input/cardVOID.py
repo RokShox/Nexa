@@ -1,4 +1,4 @@
-from typing import List, Optional, TextIO, Union
+from typing import TextIO
 
 
 class VOIDCard:
@@ -10,7 +10,7 @@ class VOIDCard:
     calculating volumes stochastically.
     """
     
-    def __init__(self, cell_numbers: Optional[Union[int, List[int]]] = None):
+    def __init__(self, cell_numbers: int | list[int] | None = None):
         """
         Initialize a VOID card.
         
@@ -54,7 +54,7 @@ class VOIDCard:
         self.cell_numbers = []
         self.void_all = True
     
-    def set_specific_cells(self, cell_numbers: List[int]) -> None:
+    def set_specific_cells(self, cell_numbers: list[int]) -> None:
         """
         Set specific cells to be voided.
         
@@ -115,7 +115,7 @@ class VOIDCard:
         """Clear all specific cells (resulting in void all behavior)."""
         self.set_void_all_cells()
     
-    def get_cell_numbers(self) -> List[int]:
+    def get_cell_numbers(self) -> list[int]:
         """Get a copy of the cell numbers list."""
         return self.cell_numbers.copy()
     

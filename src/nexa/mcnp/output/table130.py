@@ -1,5 +1,4 @@
 import re
-from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, field
 
 
@@ -68,13 +67,13 @@ class Table130Parser:
     """Parser for MCNP output Table 130 - Neutron weight balance in each cell."""
     
     def __init__(self):
-        self.cell_balances: Dict[int, CellWeightBalance] = {}
-        self.totals: Optional[WeightBalanceTotals] = None
+        self.cell_balances: dict[int, CellWeightBalance] = {}
+        self.totals: WeightBalanceTotals | None = None
         self._header_found = False
         self._current_cells = []
         self._parsing_state = None
     
-    def parse_lines(self, lines: List[str]) -> Tuple[Dict[int, CellWeightBalance], Optional[WeightBalanceTotals]]:
+    def parse_lines(self, lines: list[str]) -> tuple[dict[int, CellWeightBalance], WeightBalanceTotals | None]:
         """
         Parse lines from MCNP output containing Table 130 data.
         
@@ -394,11 +393,11 @@ class Table130Parser:
         elif self._parsing_state == "physical":
             self.totals.physical_events.total = value
     
-    def get_cell_balance(self, cell_number: int) -> Optional[CellWeightBalance]:
+    def get_cell_balance(self, cell_number: int) -> CellWeightBalance | None:
         """Get weight balance data for a specific cell."""
         return self.cell_balances.get(cell_number)
     
-    def get_cells_with_activity(self) -> List[int]:
+    def get_cells_with_activity(self) -> list[int]:
         """Get list of cell numbers that have any neutron activity."""
         active_cells = []
         for cell_num, balance in self.cell_balances.items():
@@ -408,7 +407,7 @@ class Table130Parser:
                 active_cells.append(cell_num)
         return sorted(active_cells)
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert parsed data to dictionary."""
         result = {
             'cell_balances': {},

@@ -1,5 +1,4 @@
 import re
-from typing import List, Dict, Optional
 from dataclasses import dataclass
 
 
@@ -21,10 +20,10 @@ class Table101Parser:
     """Parser for MCNP output Table 101 - Particles and Energy Limits."""
     
     def __init__(self):
-        self.particles: List[ParticleEnergyLimit] = []
+        self.particles: list[ParticleEnergyLimit] = []
         self._header_found = False
     
-    def parse_lines(self, lines: List[str]) -> List[ParticleEnergyLimit]:
+    def parse_lines(self, lines: list[str]) -> list[ParticleEnergyLimit]:
         """
         Parse lines from MCNP output containing Table 101 data.
         
@@ -59,7 +58,7 @@ class Table101Parser:
         pattern = r'^\s*\d+\s+[a-z]+\s+'
         return bool(re.match(pattern, line.strip()))
     
-    def _parse_particle_line(self, line: str) -> Optional[ParticleEnergyLimit]:
+    def _parse_particle_line(self, line: str) -> ParticleEnergyLimit | None:
         """
         Parse a single line containing particle energy limit data.
         
@@ -116,21 +115,21 @@ class Table101Parser:
         """
         return float(value_str)
     
-    def get_particle_by_symbol(self, symbol: str) -> Optional[ParticleEnergyLimit]:
+    def get_particle_by_symbol(self, symbol: str) -> ParticleEnergyLimit | None:
         """Get particle data by symbol (e.g., 'n' for neutron)."""
         for particle in self.particles:
             if particle.particle_symbol == symbol:
                 return particle
         return None
     
-    def get_particle_by_number(self, num: int) -> Optional[ParticleEnergyLimit]:
+    def get_particle_by_number(self, num: int) -> ParticleEnergyLimit | None:
         """Get particle data by particle number."""
         for particle in self.particles:
             if particle.particle_num == num:
                 return particle
         return None
     
-    def to_dict(self) -> List[Dict]:
+    def to_dict(self) -> list[dict]:
         """Convert parsed data to list of dictionaries."""
         return [
             {

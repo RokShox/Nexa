@@ -1,5 +1,4 @@
 import re
-from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, field
 
 
@@ -7,7 +6,7 @@ from dataclasses import dataclass, field
 class NuclideActivity:
     """Data class representing neutron activity for a nuclide."""
     nuclide_id: str  # e.g., "22046.00c"
-    atom_fraction: Optional[float] = None  # Only in cell-by-cell data
+    atom_fraction: float | None = None  # Only in cell-by-cell data
     total_collisions: int = 0
     collisions_weight: float = 0.0
     weight_lost_to_capture: float = 0.0
@@ -23,7 +22,7 @@ class CellActivity:
     """Data class representing neutron activity for all nuclides in a cell."""
     cell_index: int
     cell_name: int
-    nuclides: Dict[str, NuclideActivity] = field(default_factory=dict)
+    nuclides: dict[str, NuclideActivity] = field(default_factory=dict)
 
 
 @dataclass
@@ -43,14 +42,14 @@ class Table140Parser:
     """Parser for MCNP output Table 140 - Neutron activity by nuclide."""
     
     def __init__(self):
-        self.cells: Dict[int, CellActivity] = {}
-        self.nuclide_totals: Dict[str, NuclideActivity] = {}
-        self.table_totals: Optional[TableTotals] = None
+        self.cells: dict[int, CellActivity] = {}
+        self.nuclide_totals: dict[str, NuclideActivity] = {}
+        self.table_totals: TableTotals | None = None
         self._header_found = False
         self._in_cell_section = True
         self._current_cell = None
     
-    def parse_lines(self, lines: List[str]) -> Tuple[Dict[int, CellActivity], Dict[str, NuclideActivity], Optional[TableTotals]]:
+    def parse_lines(self, lines: list[str]) -> tuple[dict[int, CellActivity], dict[str, NuclideActivity], TableTotals | None]:
         """
         Parse lines from MCNP output containing Table 140 data.
         
@@ -160,7 +159,7 @@ class Table140Parser:
         
         return False
     
-    def _parse_cell_header(self, line: str) -> Optional[Tuple[int, int]]:
+    def _parse_cell_header(self, line: str) -> tuple[int, int] | None:
         """Parse cell header to extract cell index and name."""
         try:
             parts = line.strip().split()
@@ -205,7 +204,7 @@ class Table140Parser:
         
         return False
     
-    def _parse_nuclide_line(self, line: str, include_atom_fraction: bool) -> Optional[NuclideActivity]:
+    def _parse_nuclide_line(self, line: str, include_atom_fraction: bool) -> NuclideActivity | None:
         """Parse a line containing nuclide activity data."""
         try:
             parts = line.strip().split()
@@ -261,7 +260,7 @@ class Table140Parser:
         except (ValueError, IndexError):
             return None
     
-    def _parse_totals_line(self, line: str) -> Optional[TableTotals]:
+    def _parse_totals_line(self, line: str) -> TableTotals | None:
         """Parse table totals line."""
         try:
             parts = line.strip().split()
@@ -292,19 +291,19 @@ class Table140Parser:
         except (ValueError, IndexError):
             return None
     
-    def get_cell_activity(self, cell_name: int) -> Optional[CellActivity]:
+    def get_cell_activity(self, cell_name: int) -> CellActivity | None:
         """Get activity data for a specific cell."""
         return self.cells.get(cell_name)
     
-    def get_nuclide_total(self, nuclide_id: str) -> Optional[NuclideActivity]:
+    def get_nuclide_total(self, nuclide_id: str) -> NuclideActivity | None:
         """Get total activity for a specific nuclide across all cells."""
         return self.nuclide_totals.get(nuclide_id)
     
-    def get_all_cells(self) -> List[int]:
+    def get_all_cells(self) -> list[int]:
         """Get list of all cell names."""
         return sorted(list(self.cells.keys()))
     
-    def get_all_nuclides(self) -> List[str]:
+    def get_all_nuclides(self) -> list[str]:
         """Get list of all nuclide IDs."""
         nuclides = set()
         for cell in self.cells.values():
@@ -312,14 +311,14 @@ class Table140Parser:
         nuclides.update(self.nuclide_totals.keys())
         return sorted(list(nuclides))
     
-    def get_nuclide_in_cell(self, cell_name: int, nuclide_id: str) -> Optional[NuclideActivity]:
+    def get_nuclide_in_cell(self, cell_name: int, nuclide_id: str) -> NuclideActivity | None:
         """Get activity for a specific nuclide in a specific cell."""
         cell = self.get_cell_activity(cell_name)
         if cell:
             return cell.nuclides.get(nuclide_id)
         return None
     
-    def get_cells_with_nuclide(self, nuclide_id: str) -> List[int]:
+    def get_cells_with_nuclide(self, nuclide_id: str) -> list[int]:
         """Get list of cells that contain a specific nuclide."""
         result = []
         for cell_name, cell in self.cells.items():
@@ -327,7 +326,7 @@ class Table140Parser:
                 result.append(cell_name)
         return sorted(result)
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert parsed data to dictionary."""
         return {
             'cells': {

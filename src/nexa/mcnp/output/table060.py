@@ -1,4 +1,3 @@
-from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 
 
@@ -7,7 +6,7 @@ class CellData:
     """Data class representing cell data from Table 60."""
     cell_index: int
     cell_number: int
-    material_number: Optional[int]
+    material_number: int | None
     is_source_cell: bool
     atom_density: float
     gram_density: float
@@ -29,11 +28,11 @@ class Table060Parser:
     """Parser for MCNP output Table 60 - Cells."""
     
     def __init__(self):
-        self.cells: Dict[int, CellData] = {}
-        self.totals: Optional[TableTotals] = None
+        self.cells: dict[int, CellData] = {}
+        self.totals: TableTotals | None = None
         self._header_found = False
     
-    def parse_lines(self, lines: List[str]) -> Dict[int, CellData]:
+    def parse_lines(self, lines: list[str]) -> dict[int, CellData]:
         """
         Parse lines from MCNP output containing Table 60 data.
         
@@ -118,7 +117,7 @@ class Table060Parser:
         
         return False
     
-    def _parse_material_field(self, mat_field: str) -> Tuple[Optional[int], bool]:
+    def _parse_material_field(self, mat_field: str) -> tuple[int | None, bool]:
         """
         Parse material field to extract material number and source indicator.
         
@@ -141,7 +140,7 @@ class Table060Parser:
         except ValueError:
             return None, False
     
-    def _parse_data_line(self, line: str) -> Optional[CellData]:
+    def _parse_data_line(self, line: str) -> CellData | None:
         """Parse a data line containing cell information."""
         try:
             parts = line.strip().split()
@@ -179,7 +178,7 @@ class Table060Parser:
         except (ValueError, IndexError):
             return None
     
-    def _parse_totals_line(self, line: str) -> Optional[TableTotals]:
+    def _parse_totals_line(self, line: str) -> TableTotals | None:
         """Parse totals line."""
         try:
             parts = line.strip().split()
@@ -198,15 +197,15 @@ class Table060Parser:
         except (ValueError, IndexError):
             return None
     
-    def get_cell_data(self, cell_number: int) -> Optional[CellData]:
+    def get_cell_data(self, cell_number: int) -> CellData | None:
         """Get data for a specific cell."""
         return self.cells.get(cell_number)
     
-    def get_all_cells(self) -> List[int]:
+    def get_all_cells(self) -> list[int]:
         """Get list of all cell numbers."""
         return sorted(list(self.cells.keys()))
     
-    def get_cell_material(self, cell_number: int) -> Optional[int]:
+    def get_cell_material(self, cell_number: int) -> int | None:
         """
         Get material number for a specific cell (without source indicator).
         
@@ -232,42 +231,42 @@ class Table060Parser:
         cell_data = self.cells.get(cell_number)
         return cell_data.is_source_cell if cell_data else False
     
-    def get_source_cells(self) -> List[int]:
+    def get_source_cells(self) -> list[int]:
         """Get list of all source cells."""
         return [
             cell_num for cell_num, data in self.cells.items()
             if data.is_source_cell
         ]
     
-    def get_cells_with_material(self, material_number: int) -> List[int]:
+    def get_cells_with_material(self, material_number: int) -> list[int]:
         """Get list of cells using a specific material."""
         return [
             cell_num for cell_num, data in self.cells.items()
             if data.material_number == material_number
         ]
     
-    def get_void_cells(self) -> List[int]:
+    def get_void_cells(self) -> list[int]:
         """Get list of void cells (no material assigned)."""
         return [
             cell_num for cell_num, data in self.cells.items()
             if data.material_number is None
         ]
     
-    def get_cells_with_mass(self) -> List[int]:
+    def get_cells_with_mass(self) -> list[int]:
         """Get list of cells that have non-zero mass."""
         return [
             cell_num for cell_num, data in self.cells.items()
             if data.mass > 0.0
         ]
     
-    def get_cells_with_volume(self) -> List[int]:
+    def get_cells_with_volume(self) -> list[int]:
         """Get list of cells that have non-zero volume."""
         return [
             cell_num for cell_num, data in self.cells.items()
             if data.volume > 0.0
         ]
     
-    def get_all_materials(self) -> List[int]:
+    def get_all_materials(self) -> list[int]:
         """Get list of all material numbers used in cells."""
         materials = set()
         for data in self.cells.values():
@@ -287,7 +286,7 @@ class Table060Parser:
             return self.totals.total_volume
         return sum(data.volume for data in self.cells.values())
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert parsed data to dictionary."""
         result = {
             'cells': {

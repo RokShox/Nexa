@@ -1,19 +1,17 @@
 from dataclasses import dataclass
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Union
 
 @dataclass
 class MCNPOutputKeff:
     """Data class to hold k-effective related information."""
     keff: float
     keff_sd: float
-    lifetime: Optional[float] = None
-    lifetime_sd: Optional[float] = None
-    anecf: Optional[float] = None
-    ealf: Optional[float] = None
-    nubar: Optional[float] = None
-
+    lifetime: float | None = None
+    lifetime_sd: float | None = None
+    anecf: float | None = None
+    ealf: float | None = None
+    nubar: float | None = None
     def __str__(self):
         return f"{self.keff:.6f}\t{self.keff_sd:.6f}\t{self.lifetime:8.4e}\t{self.lifetime_sd:8.4e}\t" \
                f"{self.anecf:8.4e}\t{self.ealf:8.4e}\t{self.nubar:.3f}"
@@ -25,7 +23,7 @@ class MCNPOutputKeff:
 class MCNPOutputParser:
     """Parser for MCNP output files."""
     
-    def __init__(self, filepath: Union[str, Path]):
+    def __init__(self, filepath: str | Path):
         """Initialize the parser with an output file path.
         
         Args:
@@ -45,7 +43,7 @@ class MCNPOutputParser:
         except Exception as e:
             raise Exception(f"Error reading file: {e}")
     
-    def parse(self) -> Dict:
+    def parse(self) -> dict:
         """Parse the MCNP output file and extract key information.
         
         Returns:
@@ -64,7 +62,7 @@ class MCNPOutputParser:
         
         return self.parsed_data
     
-    def _parse_run_info(self) -> Dict:
+    def _parse_run_info(self) -> dict:
         """Parse basic run information."""
         run_info = {}
         
@@ -75,7 +73,7 @@ class MCNPOutputParser:
             
         return run_info
     
-    def _parse_tallies(self) -> Dict:
+    def _parse_tallies(self) -> dict:
         """Parse tally results."""
         tallies = {}
         
@@ -92,7 +90,7 @@ class MCNPOutputParser:
             
         return tallies
     
-    def _parse_criticality(self) -> List[MCNPOutputKeff]:
+    def _parse_criticality(self) -> list[MCNPOutputKeff]:
         """Parse criticality calculations (k-effective, etc.)."""
         criticality = []
         self.nkeff = 0
@@ -138,7 +136,7 @@ class MCNPOutputParser:
 
         return criticality
     
-    def _parse_warnings(self) -> List[str]:
+    def _parse_warnings(self) -> list[str]:
         """Parse warning messages."""
         warnings = []
         warning_pattern = r'warning\..*'
@@ -149,7 +147,7 @@ class MCNPOutputParser:
             
         return warnings
     
-    def _parse_errors(self) -> List[str]:
+    def _parse_errors(self) -> list[str]:
         """Parse error messages."""
         errors = []
         error_pattern = r'fatal error\..*'
@@ -160,7 +158,7 @@ class MCNPOutputParser:
             
         return errors
     
-    def get_summary(self) -> Dict:
+    def get_summary(self) -> dict:
         """Get a summary of the parsed output.
         
         Returns:

@@ -1,4 +1,3 @@
-from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 
 
@@ -13,7 +12,7 @@ class CellVolumeData:
     calculated_volume: float
     mass: float
     pieces: int
-    reason_volume_not_calculated: Optional[str] = None
+    reason_volume_not_calculated: str | None = None
 
 
 @dataclass
@@ -23,19 +22,19 @@ class SurfaceAreaData:
     surface_number: int
     input_area: float
     calculated_area: float
-    reason_area_not_calculated: Optional[str] = None
+    reason_area_not_calculated: str | None = None
 
 
 class Table050Parser:
     """Parser for MCNP output Table 50 - Cell volumes and masses, and surface areas."""
     
     def __init__(self):
-        self.cells: Dict[int, CellVolumeData] = {}
-        self.surfaces: Dict[int, SurfaceAreaData] = {}
+        self.cells: dict[int, CellVolumeData] = {}
+        self.surfaces: dict[int, SurfaceAreaData] = {}
         self._header_found = False
         self._parsing_mode = None  # 'volumes' or 'areas'
     
-    def parse_lines(self, lines: List[str]) -> Tuple[Dict[int, CellVolumeData], Dict[int, SurfaceAreaData]]:
+    def parse_lines(self, lines: list[str]) -> tuple[dict[int, CellVolumeData], dict[int, SurfaceAreaData]]:
         """
         Parse lines from MCNP output containing Table 50 data.
         
@@ -155,7 +154,7 @@ class Table050Parser:
         
         return False
     
-    def _parse_volume_data_line(self, line: str) -> Optional[CellVolumeData]:
+    def _parse_volume_data_line(self, line: str) -> CellVolumeData | None:
         """Parse a data line containing cell volume information."""
         try:
             parts = line.strip().split()
@@ -193,7 +192,7 @@ class Table050Parser:
         except (ValueError, IndexError):
             return None
     
-    def _parse_area_data_line(self, line: str) -> Optional[SurfaceAreaData]:
+    def _parse_area_data_line(self, line: str) -> SurfaceAreaData | None:
         """Parse a data line containing surface area information."""
         try:
             parts = line.strip().split()
@@ -224,36 +223,36 @@ class Table050Parser:
             return None
     
     # Cell data methods
-    def get_cell_data(self, cell_number: int) -> Optional[CellVolumeData]:
+    def get_cell_data(self, cell_number: int) -> CellVolumeData | None:
         """Get volume/mass data for a specific cell."""
         return self.cells.get(cell_number)
     
-    def get_all_cells(self) -> List[int]:
+    def get_all_cells(self) -> list[int]:
         """Get list of all cell numbers."""
         return sorted(list(self.cells.keys()))
     
-    def get_cells_with_calculated_volume(self) -> List[int]:
+    def get_cells_with_calculated_volume(self) -> list[int]:
         """Get list of cells that have calculated volumes."""
         return [
             cell_num for cell_num, data in self.cells.items()
             if data.calculated_volume > 0.0
         ]
     
-    def get_cells_with_input_volume(self) -> List[int]:
+    def get_cells_with_input_volume(self) -> list[int]:
         """Get list of cells that have input volumes."""
         return [
             cell_num for cell_num, data in self.cells.items()
             if data.input_volume > 0.0
         ]
     
-    def get_cells_with_infinite_volume(self) -> List[int]:
+    def get_cells_with_infinite_volume(self) -> list[int]:
         """Get list of cells with infinite volume."""
         return [
             cell_num for cell_num, data in self.cells.items()
             if data.reason_volume_not_calculated and "infinite" in data.reason_volume_not_calculated.lower()
         ]
     
-    def get_cells_with_mass(self) -> List[int]:
+    def get_cells_with_mass(self) -> list[int]:
         """Get list of cells that have non-zero mass."""
         return [
             cell_num for cell_num, data in self.cells.items()
@@ -273,22 +272,22 @@ class Table050Parser:
         return sum(data.input_volume for data in self.cells.values())
     
     # Surface data methods
-    def get_surface_data(self, surface_number: int) -> Optional[SurfaceAreaData]:
+    def get_surface_data(self, surface_number: int) -> SurfaceAreaData | None:
         """Get area data for a specific surface."""
         return self.surfaces.get(surface_number)
     
-    def get_all_surfaces(self) -> List[int]:
+    def get_all_surfaces(self) -> list[int]:
         """Get list of all surface numbers."""
         return sorted(list(self.surfaces.keys()))
     
-    def get_surfaces_with_calculated_area(self) -> List[int]:
+    def get_surfaces_with_calculated_area(self) -> list[int]:
         """Get list of surfaces that have calculated areas."""
         return [
             surf_num for surf_num, data in self.surfaces.items()
             if data.calculated_area > 0.0
         ]
     
-    def get_surfaces_with_input_area(self) -> List[int]:
+    def get_surfaces_with_input_area(self) -> list[int]:
         """Get list of surfaces that have input areas."""
         return [
             surf_num for surf_num, data in self.surfaces.items()
@@ -303,7 +302,7 @@ class Table050Parser:
         """Get total input area of all surfaces."""
         return sum(data.input_area for data in self.surfaces.values())
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert parsed data to dictionary."""
         return {
             'cells': {

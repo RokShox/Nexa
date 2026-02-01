@@ -1,4 +1,4 @@
-from typing import List, Optional, Union, TextIO, Dict, Set
+from typing import TextIO
 
 
 class LATCard:
@@ -23,7 +23,7 @@ class LATCard:
     
     def __init__(self):
         """Initialize a LAT card."""
-        self.lattice_assignments: Dict[int, int] = {}  # cell_number -> lattice_type
+        self.lattice_assignments: dict[int, int] = {}  # cell_number -> lattice_type
         self.max_cell_number = 0
     
     def set_lattice_type(self, cell_number: int, lattice_type: int) -> None:
@@ -54,7 +54,7 @@ class LATCard:
             self.lattice_assignments[cell_number] = lattice_type
             self.max_cell_number = max(self.max_cell_number, cell_number)
     
-    def set_lattice_assignments(self, assignments: List[int]) -> None:
+    def set_lattice_assignments(self, assignments: list[int]) -> None:
         """
         Set lattice types for cells 1, 2, 3, ... in order.
         
@@ -196,7 +196,7 @@ class LATCard:
         self.lattice_assignments.clear()
         self.max_cell_number = 0
     
-    def get_all_assignments(self) -> Dict[int, int]:
+    def get_all_assignments(self) -> dict[int, int]:
         """Get a copy of all lattice assignments."""
         return self.lattice_assignments.copy()
     
@@ -208,7 +208,7 @@ class LATCard:
         """Check if any lattice assignments are defined."""
         return len(self.lattice_assignments) > 0
     
-    def get_lattice_cells(self, lattice_type: Optional[int] = None) -> List[int]:
+    def get_lattice_cells(self, lattice_type: int | None = None) -> list[int]:
         """
         Get all cells with lattice assignments.
         
@@ -224,11 +224,11 @@ class LATCard:
             return [cell for cell, lat_type in self.lattice_assignments.items() 
                     if lat_type == lattice_type]
     
-    def get_used_lattice_types(self) -> Set[int]:
+    def get_used_lattice_types(self) -> set[int]:
         """Get set of all lattice types used."""
         return set(self.lattice_assignments.values())
     
-    def _compress_assignments(self, assignment_list: List[int]) -> List[str]:
+    def _compress_assignments(self, assignment_list: list[int]) -> list[str]:
         """
         Compress consecutive identical assignments using jump notation.
         
@@ -361,7 +361,7 @@ class LATCard:
         """
         file.write(self.to_cell_parameter_string(cell_number) + '\n')
     
-    def validate_lattice_setup(self) -> List[str]:
+    def validate_lattice_setup(self) -> list[str]:
         """
         Validate lattice setup for potential issues.
         

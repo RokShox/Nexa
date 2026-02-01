@@ -1,5 +1,4 @@
 import re
-from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, field
 
 
@@ -7,28 +6,28 @@ from dataclasses import dataclass, field
 class IsotopeComposition:
     """Data class representing an isotope in a material composition."""
     zaid: int
-    atom_fraction: Optional[float] = None
-    mass_fraction: Optional[float] = None
+    atom_fraction: float | None = None
+    mass_fraction: float | None = None
 
 
 @dataclass
 class MaterialComposition:
     """Data class representing a complete material composition."""
     material_number: int
-    isotopes: Dict[int, IsotopeComposition] = field(default_factory=dict)  # zaid -> IsotopeComposition
-    thermal_sab_data: Optional[str] = None
+    isotopes: dict[int, IsotopeComposition] = field(default_factory=dict)  # zaid -> IsotopeComposition
+    thermal_sab_data: str | None = None
 
 
 class Table040Parser:
     """Parser for MCNP output Table 40 - Material composition."""
     
     def __init__(self):
-        self.materials: Dict[int, MaterialComposition] = {}
+        self.materials: dict[int, MaterialComposition] = {}
         self._header_found = False
         self._current_material = None
         self._parsing_mode = None  # 'atom' or 'mass'
     
-    def parse_lines(self, lines: List[str]) -> Dict[int, MaterialComposition]:
+    def parse_lines(self, lines: list[str]) -> dict[int, MaterialComposition]:
         """
         Parse lines from MCNP output containing Table 40 data.
         
@@ -40,7 +39,7 @@ class Table040Parser:
         """
         self.materials.clear()
         self._header_found = False
-        self._current_material = None
+        self._current_material: int | None = None
         self._parsing_mode = None
         
         for line in lines:
@@ -94,7 +93,7 @@ class Table040Parser:
         
         return self.materials
     
-    def _update_material_isotopes(self, material_num: int, isotopes: List[Tuple[int, float]]):
+    def _update_material_isotopes(self, material_num: int, isotopes: list[tuple[int, float]]):
         """Update material isotopes with atom or mass fractions."""
         material = self.materials[material_num]
         
@@ -153,7 +152,7 @@ class Table040Parser:
         
         return False
     
-    def _extract_material_number(self, line: str) -> Optional[int]:
+    def _extract_material_number(self, line: str) -> int | None:
         """Extract material number from the beginning of a line."""
         parts = line.strip().split()
         if parts:
@@ -167,7 +166,7 @@ class Table040Parser:
         """Check if line contains S(a,b) data information."""
         return "associated thermal s(a,b) data sets:" in line.lower()
     
-    def _extract_sab_data(self, line: str) -> Optional[str]:
+    def _extract_sab_data(self, line: str) -> str | None:
         """Extract S(a,b) data set name from line."""
         match = re.search(r"associated thermal s\(a,b\) data sets:\s*(.+)", line, re.IGNORECASE)
         if match:
@@ -187,7 +186,7 @@ class Table040Parser:
         
         return False
     
-    def _parse_isotopes_from_line(self, line: str) -> List[Tuple[int, float]]:
+    def _parse_isotopes_from_line(self, line: str) -> list[tuple[int, float]]:
         """Parse isotope compositions from a line."""
         isotopes = []
         
@@ -216,29 +215,29 @@ class Table040Parser:
         
         return isotopes
     
-    def get_material_composition(self, material_number: int) -> Optional[MaterialComposition]:
+    def get_material_composition(self, material_number: int) -> MaterialComposition | None:
         """Get composition for a specific material."""
         return self.materials.get(material_number)
     
-    def get_all_materials(self) -> List[int]:
+    def get_all_materials(self) -> list[int]:
         """Get list of all material numbers."""
         return sorted(list(self.materials.keys()))
     
-    def get_materials_with_sab_data(self) -> List[int]:
+    def get_materials_with_sab_data(self) -> list[int]:
         """Get list of materials that have associated S(a,b) data."""
         return [
             mat_num for mat_num, composition in self.materials.items()
             if composition.thermal_sab_data is not None
         ]
     
-    def get_isotope_in_material(self, material_number: int, zaid: int) -> Optional[IsotopeComposition]:
+    def get_isotope_in_material(self, material_number: int, zaid: int) -> IsotopeComposition | None:
         """Get specific isotope data for a material."""
         material = self.get_material_composition(material_number)
         if material:
             return material.isotopes.get(zaid)
         return None
     
-    def get_materials_with_isotope(self, zaid: int) -> List[int]:
+    def get_materials_with_isotope(self, zaid: int) -> list[int]:
         """Get list of materials that contain a specific isotope."""
         result = []
         for mat_num, composition in self.materials.items():
@@ -246,17 +245,17 @@ class Table040Parser:
                 result.append(mat_num)
         return sorted(result)
     
-    def get_isotope_atom_fraction(self, material_number: int, zaid: int) -> Optional[float]:
+    def get_isotope_atom_fraction(self, material_number: int, zaid: int) -> float | None:
         """Get atom fraction for a specific isotope in a material."""
         isotope = self.get_isotope_in_material(material_number, zaid)
         return isotope.atom_fraction if isotope else None
     
-    def get_isotope_mass_fraction(self, material_number: int, zaid: int) -> Optional[float]:
+    def get_isotope_mass_fraction(self, material_number: int, zaid: int) -> float | None:
         """Get mass fraction for a specific isotope in a material."""
         isotope = self.get_isotope_in_material(material_number, zaid)
         return isotope.mass_fraction if isotope else None
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert parsed data to dictionary."""
         return {
             'materials': {

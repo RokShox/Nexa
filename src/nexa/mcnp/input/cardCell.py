@@ -1,20 +1,20 @@
-from typing import List, Dict, Optional, Union, TextIO, Set
+from typing import TextIO
 from dataclasses import dataclass
 
-
+type Param = float | int | str | list[float | int | str]
 @dataclass
 class CellParameter:
     """Represents a cell parameter with optional particle designators."""
     keyword: str
-    value: Union[float, int, str, List[Union[float, int, str]]]
-    particles: Optional[Set[str]] = None  # e.g., {'n', 'p'} for neutrons and photons
+    value: Param
+    particles: set[str] | None = None  # e.g., {'n', 'p'} for neutrons and photons
     
     def __post_init__(self):
         """Validate the parameter."""
         if self.particles is not None and not isinstance(self.particles, set):
             self.particles = set(self.particles) if self.particles else None
 
-
+    
 class CellCard:
     """
     Represents an MCNP cell card (Form 1).
@@ -36,8 +36,8 @@ class CellCard:
     # Valid particle types
     VALID_PARTICLES = {'n', 'p', 'e', 'h', 'a', 's', 't', 'd', 'g'}
     
-    def __init__(self, cell_number: int, material_number: Optional[int] = None, 
-                 density: Optional[float] = None, geometry: str = ""):
+    def __init__(self, cell_number: int, material_number: int | None = None, 
+                 density: float | None = None, geometry: str = ""):
         """
         Initialize a cell card.
         
@@ -51,7 +51,7 @@ class CellCard:
         self.material_number = self._validate_material_number(material_number)
         self.density = self._validate_density(density, material_number)
         self.geometry = geometry.strip()
-        self.parameters: List[CellParameter] = []
+        self.parameters: list[CellParameter] = []
     
     def _validate_cell_number(self, cell_number: int) -> int:
         """Validate cell number."""
@@ -61,7 +61,7 @@ class CellCard:
             raise ValueError("Cell number must be between 1 and 99,999,999")
         return cell_number
     
-    def _validate_material_number(self, material_number: Optional[int]) -> Optional[int]:
+    def _validate_material_number(self, material_number: int | None) -> int | None:
         """Validate material number."""
         if material_number is None:
             return 0  # Void cell
@@ -72,7 +72,7 @@ class CellCard:
             raise ValueError("Material number must be between 0 and 99,999,999")
         return material_number
     
-    def _validate_density(self, density: Optional[float], material_number: Optional[int]) -> Optional[float]:
+    def _validate_density(self, density: float | None, material_number: int | None) -> float | None:
         """Validate density based on material number."""
         if material_number == 0 or material_number is None:
             # Void cell - density should be None
@@ -97,8 +97,8 @@ class CellCard:
         """Set the geometry specification."""
         self.geometry = geometry.strip()
     
-    def add_parameter(self, keyword: str, value: Union[float, int, str, List[Union[float, int, str]]], 
-                     particles: Optional[Union[str, List[str], Set[str]]] = None) -> None:
+    def add_parameter(self, keyword: str, value: float | int | str | list[float | int | str], 
+                     particles: str | list[str] | set[str] | None = None) -> None:
         """
         Add a cell parameter.
         
@@ -143,7 +143,7 @@ class CellCard:
         # Add new parameter
         self.parameters.append(CellParameter(keyword, value, particle_set))
     
-    def remove_parameter(self, keyword: str, particles: Optional[Union[str, List[str], Set[str]]] = None) -> bool:
+    def remove_parameter(self, keyword: str, particles: str | list[str] | set[str] | None = None) -> bool:
         """
         Remove a cell parameter.
         
@@ -171,7 +171,7 @@ class CellCard:
         
         return len(self.parameters) < initial_count
     
-    def get_parameter(self, keyword: str, particles: Optional[Union[str, List[str], Set[str]]] = None) -> Optional[CellParameter]:
+    def get_parameter(self, keyword: str, particles: str | list[str] | set[str] | None = None) -> CellParameter | None:
         """
         Get a cell parameter.
         
@@ -199,7 +199,7 @@ class CellCard:
         
         return None
     
-    def set_importance(self, particles: Union[str, List[str]], importance: float) -> None:
+    def set_importance(self, particles: str | list[str], importance: float) -> None:
         """Set importance for specified particles."""
         self.add_parameter('IMP', importance, particles)
     
@@ -209,7 +209,7 @@ class CellCard:
             raise ValueError("Volume must be positive")
         self.add_parameter('VOL', volume)
     
-    def set_temperature(self, temperature: Union[float, List[float]]) -> None:
+    def set_temperature(self, temperature: float | list[float]) -> None:
         """Set cell temperature(s)."""
         if isinstance(temperature, (int, float)):
             if temperature <= 0:
@@ -228,7 +228,7 @@ class CellCard:
             raise ValueError("Universe must be an integer")
         self.add_parameter('U', universe)
     
-    def set_fill(self, fill_value: Union[int, str]) -> None:
+    def set_fill(self, fill_value: int | str) -> None:
         """Set fill specification."""
         self.add_parameter('FILL', fill_value)
     
@@ -238,7 +238,7 @@ class CellCard:
             raise ValueError("Lattice type must be 1 (square) or 2 (hexagonal)")
         self.add_parameter('LAT', lattice_type)
     
-    def _format_parameter_value(self, value: Union[float, int, str, List[Union[float, int, str]]]) -> str:
+    def _format_parameter_value(self, value: Param) -> str:
         """Format parameter value for output."""
         if isinstance(value, str):
             return value

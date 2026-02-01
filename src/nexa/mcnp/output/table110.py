@@ -1,6 +1,5 @@
 import re
 import math
-from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, field
 
 
@@ -12,8 +11,8 @@ class ParticlePoint:
     z: float
     r: float  # Distance from origin: sqrt(x^2 + y^2 + z^2)
     cell: int
-    lattice_indices: Optional[Tuple[int, int, int]] = None  # [i, j, k] if in lattice
-    surface: Optional[int] = None
+    lattice_indices: tuple[int, int, int] | None = None  # [i, j, k] if in lattice
+    surface: int | None = None
     u: float = 0.0  # Direction cosine
     v: float = 0.0  # Direction cosine
     w: float = 0.0  # Direction cosine
@@ -26,10 +25,10 @@ class SourceParticle:
     energy: float
     weight: float
     time: float
-    points: List[ParticlePoint] = field(default_factory=list)  # Geometry hierarchy
+    points: list[ParticlePoint] = field(default_factory=list)  # Geometry hierarchy
     
     @property
-    def birth_point(self) -> Optional[ParticlePoint]:
+    def birth_point(self) -> ParticlePoint | None:
         """Get the birth point (first point in hierarchy)."""
         return self.points[0] if self.points else None
 
@@ -38,11 +37,11 @@ class Table110Parser:
     """Parser for MCNP output Table 110 - Starting source particles."""
     
     def __init__(self):
-        self.particles: Dict[int, SourceParticle] = {}
+        self.particles: dict[int, SourceParticle] = {}
         self._header_found = False
         self._current_particle = None
     
-    def parse_lines(self, lines: List[str]) -> Dict[int, SourceParticle]:
+    def parse_lines(self, lines: list[str]) -> dict[int, SourceParticle]:
         """
         Parse lines from MCNP output containing Table 110 data.
         
@@ -158,7 +157,7 @@ class Table110Parser:
         """Calculate distance from origin."""
         return math.sqrt(x*x + y*y + z*z)
     
-    def _parse_lattice_indices(self, cell_field: str) -> Tuple[Optional[int], Optional[Tuple[int, int, int]]]:
+    def _parse_lattice_indices(self, cell_field: str) -> tuple[int | None, tuple[int, int, int] | None]:
         """
         Parse cell field that may contain lattice indices.
         
@@ -184,7 +183,7 @@ class Table110Parser:
         except ValueError:
             return None, None
     
-    def _parse_particle_start_line(self, line: str) -> Optional[Tuple[int, ParticlePoint, float, float, float]]:
+    def _parse_particle_start_line(self, line: str) -> tuple[int, ParticlePoint, float, float, float] | None:
         """Parse the first line of a particle (contains nps and full data)."""
         try:
             parts = line.strip().split()
@@ -240,7 +239,7 @@ class Table110Parser:
         except (ValueError, IndexError):
             return None
     
-    def _parse_geometry_line(self, line: str) -> Optional[ParticlePoint]:
+    def _parse_geometry_line(self, line: str) -> ParticlePoint | None:
         """Parse a geometry continuation line."""
         try:
             parts = line.strip().split()
@@ -287,15 +286,15 @@ class Table110Parser:
         except (ValueError, IndexError):
             return None
     
-    def get_particle(self, nps: int) -> Optional[SourceParticle]:
+    def get_particle(self, nps: int) -> SourceParticle | None:
         """Get data for a specific particle."""
         return self.particles.get(nps)
     
-    def get_all_particles(self) -> List[int]:
+    def get_all_particles(self) -> list[int]:
         """Get list of all particle numbers."""
         return sorted(list(self.particles.keys()))
     
-    def get_particles_in_cell(self, cell: int) -> List[SourceParticle]:
+    def get_particles_in_cell(self, cell: int) -> list[SourceParticle]:
         """Get particles born in a specific cell."""
         result = []
         for particle in self.particles.values():
@@ -303,7 +302,7 @@ class Table110Parser:
                 result.append(particle)
         return result
     
-    def get_particle_birth_positions(self) -> List[Tuple[int, float, float, float, float]]:
+    def get_particle_birth_positions(self) -> list[tuple[int, float, float, float, float]]:
         """Get birth positions for all particles as (nps, x, y, z, r)."""
         result = []
         for particle in self.particles.values():
@@ -312,7 +311,7 @@ class Table110Parser:
                 result.append((particle.nps, bp.x, bp.y, bp.z, bp.r))
         return result
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert parsed data to dictionary."""
         return {
             'particles': {

@@ -1,12 +1,11 @@
 import re
-from typing import List, Dict, Optional
 from dataclasses import dataclass
 
 
 @dataclass
 class SABAssignment:
     """Data class representing S(a,b) assignment from MCNP Table 102."""
-    mat: Optional[int]
+    mat: int | None
     nuclide: str
     sab_table: str
 
@@ -15,11 +14,11 @@ class Table102Parser:
     """Parser for MCNP output Table 102 - Assignment of S(a,b) data to nuclides."""
     
     def __init__(self):
-        self.assignments: List[SABAssignment] = []
+        self.assignments: list[SABAssignment] = []
         self._header_found = False
         self._current_mat = None
     
-    def parse_lines(self, lines: List[str]) -> List[SABAssignment]:
+    def parse_lines(self, lines: list[str]) -> list[SABAssignment]:
         """
         Parse lines from MCNP output containing Table 102 data.
         
@@ -72,7 +71,7 @@ class Table102Parser:
         pattern = r'^\s*(\d+\s+\S+\.\d+\w+\s+\S+|\S+\.\d+\w+\s+\S+)'
         return bool(re.match(pattern, stripped))
     
-    def _parse_assignment_line(self, line: str) -> Optional[SABAssignment]:
+    def _parse_assignment_line(self, line: str) -> SABAssignment | None:
         """
         Parse a single line containing S(a,b) assignment data.
         
@@ -115,15 +114,15 @@ class Table102Parser:
             print(f"Error parsing line: {line.strip()} - {e}")
             return None
     
-    def get_assignments_by_mat(self, mat: int) -> List[SABAssignment]:
+    def get_assignments_by_mat(self, mat: int) -> list[SABAssignment]:
         """Get all S(a,b) assignments for a specific material."""
         return [assignment for assignment in self.assignments if assignment.mat == mat]
     
-    def get_assignment_by_nuclide(self, nuclide: str) -> List[SABAssignment]:
+    def get_assignment_by_nuclide(self, nuclide: str) -> list[SABAssignment]:
         """Get S(a,b) assignments for a specific nuclide."""
         return [assignment for assignment in self.assignments if assignment.nuclide == nuclide]
     
-    def get_unique_materials(self) -> List[int]:
+    def get_unique_materials(self) -> list[int]:
         """Get list of unique material numbers."""
         mats = set()
         for assignment in self.assignments:
@@ -131,14 +130,14 @@ class Table102Parser:
                 mats.add(assignment.mat)
         return sorted(list(mats))
     
-    def get_unique_sab_tables(self) -> List[str]:
+    def get_unique_sab_tables(self) -> list[str]:
         """Get list of unique S(a,b) tables."""
         tables = set()
         for assignment in self.assignments:
             tables.add(assignment.sab_table)
         return sorted(list(tables))
     
-    def to_dict(self) -> List[Dict]:
+    def to_dict(self) -> list[dict]:
         """Convert parsed data to list of dictionaries."""
         return [
             {

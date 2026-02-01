@@ -1,5 +1,4 @@
 import re
-from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, field
 
 
@@ -60,10 +59,10 @@ class MaterialInventory:
     time_days: float
     power_mw: float
     volume_cm3: float
-    actinide_nuclides: List[NuclideInventoryData] = field(default_factory=list)
-    actinide_totals: Optional[InventoryTotals] = None
-    nonactinide_nuclides: List[NuclideInventoryData] = field(default_factory=list)
-    nonactinide_totals: Optional[InventoryTotals] = None
+    actinide_nuclides: list[NuclideInventoryData] = field(default_factory=list)
+    actinide_totals: InventoryTotals | None = None
+    nonactinide_nuclides: list[NuclideInventoryData] = field(default_factory=list)
+    nonactinide_totals: InventoryTotals | None = None
 
     def __str__(self) -> str:
         return (f"MaterialInventory(material_id={self.material_id}, step={self.step}, "
@@ -75,9 +74,9 @@ class Table210Parser:
     """Parser for MCNP output Table 210 - Burnup summary table by material."""
     
     def __init__(self):
-        self.neutronics_data: List[NeutronicsData] = []
-        self.material_burnup_data: Dict[int, List[MaterialBurnupData]] = {}
-        self.material_inventories: Dict[int, List[MaterialInventory]] = {}
+        self.neutronics_data: list[NeutronicsData] = []
+        self.material_burnup_data: dict[int, list[MaterialBurnupData]] = {}
+        self.material_inventories: dict[int, list[MaterialInventory]] = {}
         self._header_found = False
         self._parsing_state = None
         self._current_material = None
@@ -86,7 +85,7 @@ class Table210Parser:
         self._current_volume = None
         self._inventory_type = None
     
-    def parse_lines(self, lines: List[str]) -> Tuple[List[NeutronicsData], Dict[int, List[MaterialBurnupData]], Dict[int, List[MaterialInventory]]]:
+    def parse_lines(self, lines: list[str]) -> tuple[list[NeutronicsData], dict[int, list[MaterialBurnupData]], dict[int, list[MaterialInventory]]]:
         """
         Parse lines from MCNP output containing Table 210 data.
         
@@ -240,7 +239,7 @@ class Table210Parser:
         """Check if line contains inventory header."""
         return ("actinide inventory" in line.lower() or "nonactinide inventory" in line.lower()) and "material" in line.lower()
     
-    def _parse_inventory_preheader(self, line: str) -> Optional[Tuple[int, float]]:
+    def _parse_inventory_preheader(self, line: str) -> tuple[int, float] | None:
         """Parse inventory preheader to extract material and volume."""
         try:
             mat_match = re.search(r"material\s+(\d+)", line)
@@ -254,7 +253,7 @@ class Table210Parser:
         except (ValueError, AttributeError):
             pass
 
-    def _parse_inventory_header(self, line: str) -> Optional[Tuple[int, int, float, float, str]]:
+    def _parse_inventory_header(self, line: str) -> tuple[int, int, float, float, str] | None:
         """Parse inventory header to extract material, step, time, power, and type."""
         try:
             # Extract inventory type
@@ -311,7 +310,7 @@ class Table210Parser:
         """Check if line contains totals."""
         return line.strip().startswith("totals")
     
-    def _parse_neutronics_line(self, line: str) -> Optional[NeutronicsData]:
+    def _parse_neutronics_line(self, line: str) -> NeutronicsData | None:
         """Parse neutronics data line."""
         try:
             parts = line.strip().split()
@@ -333,7 +332,7 @@ class Table210Parser:
         except (ValueError, IndexError):
             return None
     
-    def _parse_material_burnup_line(self, line: str) -> Optional[MaterialBurnupData]:
+    def _parse_material_burnup_line(self, line: str) -> MaterialBurnupData | None:
         """Parse material burnup data line."""
         try:
             parts = line.strip().split()
@@ -350,7 +349,7 @@ class Table210Parser:
         except (ValueError, IndexError):
             return None
     
-    def _parse_inventory_data_line(self, line: str) -> Optional[NuclideInventoryData]:
+    def _parse_inventory_data_line(self, line: str) -> NuclideInventoryData | None:
         """Parse inventory data line."""
         try:
             parts = line.strip().split()
@@ -370,7 +369,7 @@ class Table210Parser:
         except (ValueError, IndexError):
             return None
     
-    def _parse_totals_line(self, line: str) -> Optional[InventoryTotals]:
+    def _parse_totals_line(self, line: str) -> InventoryTotals | None:
         """Parse totals line."""
         try:
             parts = line.strip().split()
@@ -388,18 +387,18 @@ class Table210Parser:
         except (ValueError, IndexError):
             return None
     
-    def get_neutronics_at_step(self, step: int) -> Optional[NeutronicsData]:
+    def get_neutronics_at_step(self, step: int) -> NeutronicsData | None:
         """Get neutronics data for a specific step."""
         for data in self.neutronics_data:
             if data.step == step:
                 return data
         return None
     
-    def get_material_burnup(self, material_id: int) -> List[MaterialBurnupData]:
+    def get_material_burnup(self, material_id: int) -> list[MaterialBurnupData]:
         """Get burnup data for a specific material."""
         return self.material_burnup_data.get(material_id, [])
     
-    def get_material_inventory(self, material_id: int, step: int) -> Optional[MaterialInventory]:
+    def get_material_inventory(self, material_id: int, step: int) -> MaterialInventory | None:
         """Get inventory data for a specific material at a specific step."""
         if material_id in self.material_inventories:
             for inventory in self.material_inventories[material_id]:
@@ -407,14 +406,14 @@ class Table210Parser:
                     return inventory
         return None
     
-    def get_all_materials(self) -> List[int]:
+    def get_all_materials(self) -> list[int]:
         """Get list of all material IDs."""
         materials = set()
         materials.update(self.material_burnup_data.keys())
         materials.update(self.material_inventories.keys())
         return sorted(list(materials))
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert parsed data to dictionary."""
         return {
             'neutronics_data': [

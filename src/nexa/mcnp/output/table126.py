@@ -1,5 +1,4 @@
 import re
-from typing import List, Dict, Optional
 from dataclasses import dataclass
 
 
@@ -30,12 +29,12 @@ class Table126Parser:
     """Parser for MCNP output Table 126 - Neutron activity in each cell."""
     
     def __init__(self):
-        self.activities: List[NeutronActivity] = []
-        self.total: Optional[NeutronActivityTotal] = None
+        self.activities: list[NeutronActivity] = []
+        self.total: NeutronActivityTotal | None = None
         self._header_found = False
         self._data_section = False
     
-    def parse_lines(self, lines: List[str]) -> tuple[List[NeutronActivity], Optional[NeutronActivityTotal]]:
+    def parse_lines(self, lines: list[str]) -> tuple[list[NeutronActivity], NeutronActivityTotal | None]:
         """
         Parse lines from MCNP output containing Table 126 data.
         
@@ -95,7 +94,7 @@ class Table126Parser:
         pattern = r'^\s*\d+\s+\d+\s+'
         return bool(re.match(pattern, stripped))
     
-    def _parse_activity_line(self, line: str) -> Optional[NeutronActivity]:
+    def _parse_activity_line(self, line: str) -> NeutronActivity | None:
         """
         Parse a single line containing neutron activity data.
         
@@ -138,7 +137,7 @@ class Table126Parser:
             print(f"Error parsing line: {line.strip()} - {e}")
             return None
     
-    def _parse_total_line(self, line: str) -> Optional[NeutronActivityTotal]:
+    def _parse_total_line(self, line: str) -> NeutronActivityTotal | None:
         """
         Parse the total line.
         
@@ -183,19 +182,19 @@ class Table126Parser:
         """
         return float(value_str)
     
-    def get_activity_by_cell(self, cell_number: int) -> Optional[NeutronActivity]:
+    def get_activity_by_cell(self, cell_number: int) -> NeutronActivity | None:
         """Get neutron activity data for a specific cell."""
         for activity in self.activities:
             if activity.cell_number == cell_number:
                 return activity
         return None
     
-    def get_cells_with_activity(self) -> List[int]:
+    def get_cells_with_activity(self) -> list[int]:
         """Get list of cell numbers that have neutron activity."""
         return [activity.cell_number for activity in self.activities 
                 if activity.tracks_entering > 0 or activity.population > 0 or activity.collisions > 0]
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert parsed data to dictionary."""
         result = {
             'activities': [

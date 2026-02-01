@@ -1,4 +1,4 @@
-from typing import List, Optional, Union, TextIO, Dict, Set
+from typing import TextIO
 
 
 class UCard:
@@ -15,8 +15,8 @@ class UCard:
     
     def __init__(self):
         """Initialize a U card."""
-        self.universe_assignments: Dict[int, int] = {}  # cell_number -> universe_number
-        self.optimized_cells: Set[int] = set()  # cells with minus sign optimization
+        self.universe_assignments: dict[int, int] = {}  # cell_number -> universe_number
+        self.optimized_cells: set[int] = set()  # cells with minus sign optimization
         self.max_cell_number = 0
     
     def set_universe(self, cell_number: int, universe_number: int, optimized: bool = False) -> None:
@@ -45,7 +45,7 @@ class UCard:
         elif cell_number in self.optimized_cells:
             self.optimized_cells.remove(cell_number)
     
-    def set_universe_assignments(self, assignments: List[int], optimized_cells: Optional[List[bool]] = None) -> None:
+    def set_universe_assignments(self, assignments: list[int], optimized_cells: list[bool] | None = None) -> None:
         """
         Set universe assignments for cells 1, 2, 3, ... in order.
         
@@ -72,7 +72,7 @@ class UCard:
         
         self.max_cell_number = len(assignments)
     
-    def get_universe(self, cell_number: int) -> Optional[int]:
+    def get_universe(self, cell_number: int) -> int | None:
         """
         Get universe assignment for a specific cell.
         
@@ -138,11 +138,11 @@ class UCard:
         self.optimized_cells.clear()
         self.max_cell_number = 0
     
-    def get_all_assignments(self) -> Dict[int, int]:
+    def get_all_assignments(self) -> dict[int, int]:
         """Get a copy of all universe assignments."""
         return self.universe_assignments.copy()
     
-    def get_optimized_cells(self) -> Set[int]:
+    def get_optimized_cells(self) -> set[int]:
         """Get a copy of all optimized cell numbers."""
         return self.optimized_cells.copy()
     
@@ -154,7 +154,7 @@ class UCard:
         """Check if any universe assignments are defined."""
         return len(self.universe_assignments) > 0
     
-    def get_cells_in_universe(self, universe_number: int) -> List[int]:
+    def get_cells_in_universe(self, universe_number: int) -> list[int]:
         """
         Get all cells assigned to a specific universe.
         
@@ -167,7 +167,7 @@ class UCard:
         return [cell for cell, universe in self.universe_assignments.items() 
                 if universe == universe_number]
     
-    def get_used_universes(self) -> Set[int]:
+    def get_used_universes(self) -> set[int]:
         """Get set of all universe numbers used."""
         return set(self.universe_assignments.values())
     
@@ -184,7 +184,7 @@ class UCard:
         universe = self.get_universe(cell_number)
         return universe is None or universe == 0
     
-    def _compress_assignments(self, assignment_list: List[int], optimization_list: List[bool]) -> List[str]:
+    def _compress_assignments(self, assignment_list: list[int], optimization_list: list[bool]) -> list[str]:
         """
         Compress consecutive identical assignments using jump notation.
         
@@ -329,7 +329,7 @@ class UCard:
         """
         file.write(self.to_cell_parameter_string(cell_number) + '\n')
     
-    def validate_hierarchy(self) -> List[str]:
+    def validate_hierarchy(self) -> list[str]:
         """
         Validate universe hierarchy for potential issues.
         

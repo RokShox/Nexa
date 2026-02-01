@@ -1,4 +1,4 @@
-from typing import List, Optional, Union, TextIO
+from typing import TextIO
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import math
@@ -137,8 +137,8 @@ class SurfaceCard:
         'TZ': 6,   # Elliptical torus parallel to z-axis: x,y,z,A,B,C
     }
     
-    def __init__(self, surface_number: int, surface_type: str, parameters: List[float], 
-                 transformation: Optional[int] = None, reflecting: bool = False, 
+    def __init__(self, surface_number: int, surface_type: str, parameters: list[float], 
+                 transformation: int | None = None, reflecting: bool = False, 
                  white_boundary: bool = False):
         """
         Initialize a surface card.
@@ -186,7 +186,7 @@ class SurfaceCard:
         
         return surface_type
     
-    def _validate_parameters(self, surface_type: str, parameters: List[float]) -> List[float]:
+    def _validate_parameters(self, surface_type: str, parameters: list[float]) -> list[float]:
         """Validate parameters for the given surface type."""
         if not isinstance(parameters, list):
             raise ValueError("Parameters must be a list")
@@ -229,7 +229,7 @@ class SurfaceCard:
         """Check if this surface is periodic."""
         return self.transformation is not None and self.transformation < 0
     
-    def get_periodic_partner(self) -> Optional[int]:
+    def get_periodic_partner(self) -> int | None:
         """Get the periodic partner surface number."""
         if self.is_periodic():
             return abs(self.transformation)

@@ -1,4 +1,4 @@
-from typing import List, Optional, Union, TextIO, Tuple
+from typing import TextIO
 import math
 
 
@@ -14,8 +14,8 @@ class TRCard:
     The transformation consists of a displacement vector and rotation matrix.
     """
     
-    def __init__(self, transformation_number: int, displacement: Optional[List[float]] = None,
-                 rotation_matrix: Optional[List[List[float]]] = None, 
+    def __init__(self, transformation_number: int, displacement: list[float] | None = None,
+                 rotation_matrix: list[list[float]] | None = None, 
                  displacement_origin: int = 1, use_degrees: bool = False):
         """
         Initialize a TR card.
@@ -65,7 +65,7 @@ class TRCard:
         except (ValueError, TypeError):
             raise ValueError("Displacement components must be numeric")
     
-    def _process_rotation_matrix(self, matrix_input: List[List[float]]) -> Tuple[List[List[float]], str]:
+    def _process_rotation_matrix(self, matrix_input: list[list[float]]) -> tuple[list[list[float]], str]:
         """
         Process rotation matrix input and complete it if partially specified.
         
@@ -116,7 +116,7 @@ class TRCard:
             raise ValueError(f"Invalid number of rotation matrix entries: {num_entries}. "
                            f"Expected 0, 3, 5, 6, or 9 entries.")
     
-    def _complete_matrix_one_vector(self, vector: List[float]) -> List[List[float]]:
+    def _complete_matrix_one_vector(self, vector: list[float]) -> list[list[float]]:
         """Complete matrix from one vector (3 values)."""
         # Normalize the input vector
         v = self._normalize_vector(vector)
@@ -138,7 +138,7 @@ class TRCard:
         
         return [v, w1, w2]
     
-    def _complete_matrix_eulerian(self, values: List[float]) -> List[List[float]]:
+    def _complete_matrix_eulerian(self, values: list[float]) -> list[list[float]]:
         """Complete matrix using Eulerian angles scheme (5 values)."""
         # This is a simplified implementation
         # In practice, MCNP uses a more sophisticated algorithm
@@ -163,7 +163,7 @@ class TRCard:
         
         return [v1, v2, v3]
     
-    def _complete_matrix_two_vectors(self, values: List[float]) -> List[List[float]]:
+    def _complete_matrix_two_vectors(self, values: list[float]) -> list[list[float]]:
         """Complete matrix from two vectors (6 values)."""
         v1 = self._normalize_vector(values[:3])
         v2 = self._normalize_vector(values[3:6])
@@ -174,14 +174,14 @@ class TRCard:
         
         return [v1, v2, v3]
     
-    def _normalize_vector(self, vector: List[float]) -> List[float]:
+    def _normalize_vector(self, vector: list[float]) -> list[float]:
         """Normalize a vector to unit length."""
         magnitude = math.sqrt(sum(x**2 for x in vector))
         if magnitude == 0:
             raise ValueError("Cannot normalize zero vector")
         return [x/magnitude for x in vector]
     
-    def _cross_product(self, v1: List[float], v2: List[float]) -> List[float]:
+    def _cross_product(self, v1: list[float], v2: list[float]) -> list[float]:
         """Calculate cross product of two 3D vectors."""
         return [
             v1[1]*v2[2] - v1[2]*v2[1],
@@ -189,7 +189,7 @@ class TRCard:
             v1[0]*v2[1] - v1[1]*v2[0]
         ]
     
-    def _validate_rotation_matrix(self, matrix: List[List[float]]) -> None:
+    def _validate_rotation_matrix(self, matrix: list[list[float]]) -> None:
         """Validate that the rotation matrix is orthogonal."""
         # Check dimensions
         if len(matrix) != 3 or any(len(row) != 3 for row in matrix):
@@ -213,7 +213,7 @@ class TRCard:
         """Set the displacement origin flag."""
         self.displacement_origin = self._validate_displacement_origin(origin)
     
-    def set_rotation_matrix(self, matrix: List[List[float]]) -> None:
+    def set_rotation_matrix(self, matrix: list[list[float]]) -> None:
         """Set the rotation matrix."""
         self.rotation_matrix, self.matrix_specification = self._process_rotation_matrix(matrix)
     

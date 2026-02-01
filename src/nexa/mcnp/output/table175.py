@@ -1,5 +1,4 @@
 import re
-from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, field
 
 
@@ -18,7 +17,7 @@ class CombinationData:
     simple_uncertainty: float
     combined_average: float
     combined_uncertainty: float
-    correlation: Optional[float] = None
+    correlation: float | None = None
 
 
 @dataclass
@@ -28,45 +27,44 @@ class CycleData:
     active_cycles: int  # Number of active cycles averaged
     
     # Individual estimators
-    k_collision: Optional[EstimatorData] = None
-    k_absorption: Optional[EstimatorData] = None
-    k_track_length: Optional[EstimatorData] = None
-    rem_life_collision: Optional[EstimatorData] = None
-    rem_life_absorption: Optional[EstimatorData] = None
+    k_collision: EstimatorData | None = None
+    k_absorption: EstimatorData | None = None
+    k_track_length: EstimatorData | None = None
+    rem_life_collision: EstimatorData | None = None
+    rem_life_absorption: EstimatorData | None = None
     
     # Combination estimates
-    k_col_abs: Optional[CombinationData] = None
-    k_abs_tk_ln: Optional[CombinationData] = None
-    k_tk_ln_col: Optional[CombinationData] = None
-    k_col_abs_tk_ln: Optional[CombinationData] = None
-    life_col_abs_tl: Optional[CombinationData] = None
+    k_col_abs: CombinationData | None = None
+    k_abs_tk_ln: CombinationData | None = None
+    k_tk_ln_col: CombinationData | None = None
+    k_col_abs_tk_ln: CombinationData | None = None
+    life_col_abs_tl: CombinationData | None = None
     
     # Additional data
-    source_points_generated: Optional[int] = None
-    source_entropy: Optional[float] = None
-
+    source_points_generated: int | None = None
+    source_entropy: float | None = None
 
 @dataclass
 class SkippedCycleData:
     """Data class for cycles that are skipped (before active cycles)."""
     cycle: int
-    k_collision: Optional[float] = None
-    prompt_removal_lifetime_abs: Optional[float] = None
-    source_points_generated: Optional[int] = None
-    source_entropy: Optional[float] = None
+    k_collision: float | None = None
+    prompt_removal_lifetime_abs: float | None = None
+    source_points_generated: int | None = None
+    source_entropy: float | None = None
 
 
 class Table175Parser:
     """Parser for MCNP output Table 175 - Estimated k-effective results by cycle."""
     
     def __init__(self):
-        self.active_cycles: Dict[int, CycleData] = {}
-        self.skipped_cycles: Dict[int, SkippedCycleData] = {}
+        self.active_cycles: dict[int, CycleData] = {}
+        self.skipped_cycles: dict[int, SkippedCycleData] = {}
         self._header_found = False
         self._in_estimator_block = False
         self._current_cycle_data = None
     
-    def parse_lines(self, lines: List[str]) -> Tuple[Dict[int, CycleData], Dict[int, SkippedCycleData]]:
+    def parse_lines(self, lines: list[str]) -> tuple[dict[int, CycleData], dict[int, SkippedCycleData]]:
         """
         Parse lines from MCNP output containing Table 175 data.
         
@@ -152,7 +150,7 @@ class Table175Parser:
                 "prompt removal lifetime(abs)" in line and 
                 "estimator" not in line)
     
-    def _parse_skipped_cycle_line(self, line: str) -> Optional[SkippedCycleData]:
+    def _parse_skipped_cycle_line(self, line: str) -> SkippedCycleData | None:
         """Parse a skipped cycle line."""
         try:
             # Extract cycle number
@@ -191,7 +189,7 @@ class Table175Parser:
         """Check if line is an estimator block header."""
         return line.strip().startswith("estimator") and "cycle" in line and "ave of" in line
     
-    def _parse_estimator_header(self, line: str) -> Optional[Tuple[int, int]]:
+    def _parse_estimator_header(self, line: str) -> tuple[int, int] | None:
         """Parse estimator header to get cycle and active cycles count."""
         try:
             # Pattern: "estimator     cycle   300   ave of   100 cycles"
@@ -245,7 +243,7 @@ class Table175Parser:
         elif "life(col/abs/tl)" in stripped:
             self._current_cycle_data.life_col_abs_tl = self._parse_combination_estimator(stripped)
     
-    def _parse_individual_estimator(self, line: str) -> Optional[EstimatorData]:
+    def _parse_individual_estimator(self, line: str) -> EstimatorData | None:
         """Parse individual estimator line."""
         try:
             # Extract numeric values (should be 3: current, average, uncertainty)
@@ -263,7 +261,7 @@ class Table175Parser:
             pass
         return None
     
-    def _parse_combination_estimator(self, line: str) -> Optional[CombinationData]:
+    def _parse_combination_estimator(self, line: str) -> CombinationData | None:
         """Parse combination estimator line."""
         try:
             # Extract numeric values after the combination name
@@ -306,23 +304,23 @@ class Table175Parser:
         if entropy_match:
             self._current_cycle_data.source_entropy = float(entropy_match.group(1))
     
-    def get_cycle_data(self, cycle: int) -> Optional[CycleData]:
+    def get_cycle_data(self, cycle: int) -> CycleData | None:
         """Get active cycle data for a specific cycle."""
         return self.active_cycles.get(cycle)
     
-    def get_skipped_cycle_data(self, cycle: int) -> Optional[SkippedCycleData]:
+    def get_skipped_cycle_data(self, cycle: int) -> SkippedCycleData | None:
         """Get skipped cycle data for a specific cycle."""
         return self.skipped_cycles.get(cycle)
     
-    def get_all_active_cycles(self) -> List[int]:
+    def get_all_active_cycles(self) -> list[int]:
         """Get list of all active cycle numbers."""
         return sorted(list(self.active_cycles.keys()))
     
-    def get_all_skipped_cycles(self) -> List[int]:
+    def get_all_skipped_cycles(self) -> list[int]:
         """Get list of all skipped cycle numbers."""
         return sorted(list(self.skipped_cycles.keys()))
     
-    def get_final_k_effective(self) -> Optional[float]:
+    def get_final_k_effective(self) -> float | None:
         """Get the final k-effective estimate (combined average from last cycle)."""
         if not self.active_cycles:
             return None
@@ -334,7 +332,7 @@ class Table175Parser:
             return cycle_data.k_col_abs_tk_ln.combined_average
         return None
     
-    def get_final_k_effective_uncertainty(self) -> Optional[float]:
+    def get_final_k_effective_uncertainty(self) -> float | None:
         """Get the final k-effective uncertainty."""
         if not self.active_cycles:
             return None
@@ -346,7 +344,7 @@ class Table175Parser:
             return cycle_data.k_col_abs_tk_ln.combined_uncertainty
         return None
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert parsed data to dictionary."""
         return {
             'active_cycles': {

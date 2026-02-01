@@ -1,5 +1,4 @@
 import re
-from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, field
 
 
@@ -34,12 +33,12 @@ class SummaryInventory:
     time_days: float
     power_mw: float
     total_volume_cm3: float
-    actinide_nuclides: List[SummaryNuclideData] = field(default_factory=list)
-    actinide_totals: Optional[SummaryTotals] = None
-    nonactinide_nuclides: List[SummaryNuclideData] = field(default_factory=list)
-    nonactinide_totals: Optional[SummaryTotals] = None
+    actinide_nuclides: list[SummaryNuclideData] = field(default_factory=list)
+    actinide_totals: SummaryTotals | None = None
+    nonactinide_nuclides: list[SummaryNuclideData] = field(default_factory=list)
+    nonactinide_totals: SummaryTotals | None = None
 
-    def nuclides_by_type(self, type: str) -> List[SummaryNuclideData]:
+    def nuclides_by_type(self, type: str) -> list[SummaryNuclideData]:
         """Get nuclides by type: 'actinide' or 'nonactinide'."""
         if type == "actinide":
             return self.actinide_nuclides
@@ -48,7 +47,7 @@ class SummaryInventory:
         else:
             raise ValueError("Invalid nuclide type. Use 'actinide' or 'nonactinide'."   )
         
-    def totals_by_type(self, type: str) -> Optional[SummaryTotals]:
+    def totals_by_type(self, type: str) -> SummaryTotals | None:
         """Get totals by type: 'actinide' or 'nonactinide'."""
         if type == "actinide":
             return self.actinide_totals
@@ -63,14 +62,14 @@ class Table220Parser:
     """Parser for MCNP output Table 220 - Burnup summary table summed over all materials."""
     
     def __init__(self):
-        self.summary_inventories: List[SummaryInventory] = []
+        self.summary_inventories: list[SummaryInventory] = []
         self._header_found = False
         self._current_step = None
         self._current_inventory = None
         self._inventory_type = None
         self._total_volume = None
     
-    def parse_lines(self, lines: List[str]) -> List[SummaryInventory]:
+    def parse_lines(self, lines: list[str]) -> list[SummaryInventory]:
         """
         Parse lines from MCNP output containing Table 220 data.
         
@@ -175,7 +174,7 @@ class Table220Parser:
         """Check if line contains inventory header."""
         return ("actinide inventory" in line.lower() or "nonactinide inventory" in line.lower()) and "sum of materials" in line.lower()
     
-    def _parse_inventory_header(self, line: str) -> Optional[Tuple[int, float, float, str]]:
+    def _parse_inventory_header(self, line: str) -> tuple[int, float, float, str] | None:
         """Parse inventory header to extract step, time, power, and type."""
         try:
             # Extract inventory type
@@ -204,7 +203,7 @@ class Table220Parser:
         
         return None
     
-    def _find_inventory_by_step(self, step: int) -> Optional[SummaryInventory]:
+    def _find_inventory_by_step(self, step: int) -> SummaryInventory | None:
         """Find existing inventory for a given step."""
         for inventory in self.summary_inventories:
             if inventory.step == step:
@@ -222,7 +221,7 @@ class Table220Parser:
         """Check if line contains totals."""
         return line.strip().startswith("totals")
     
-    def _parse_inventory_data_line(self, line: str) -> Optional[SummaryNuclideData]:
+    def _parse_inventory_data_line(self, line: str) -> SummaryNuclideData | None:
         """Parse inventory data line."""
         try:
             parts = line.strip().split()
@@ -242,7 +241,7 @@ class Table220Parser:
         except (ValueError, IndexError):
             return None
     
-    def _parse_totals_line(self, line: str) -> Optional[SummaryTotals]:
+    def _parse_totals_line(self, line: str) -> SummaryTotals | None:
         """Parse totals line."""
         try:
             parts = line.strip().split()
@@ -260,18 +259,18 @@ class Table220Parser:
         except (ValueError, IndexError):
             return None
     
-    def get_inventory_at_step(self, step: int) -> Optional[SummaryInventory]:
+    def get_inventory_at_step(self, step: int) -> SummaryInventory | None:
         """Get summary inventory for a specific step."""
         for inventory in self.summary_inventories:
             if inventory.step == step:
                 return inventory
         return None
     
-    def get_all_steps(self) -> List[int]:
+    def get_all_steps(self) -> list[int]:
         """Get list of all available steps."""
         return sorted([inv.step for inv in self.summary_inventories])
     
-    def get_actinide_nuclide_at_step(self, step: int, zaid: int) -> Optional[SummaryNuclideData]:
+    def get_actinide_nuclide_at_step(self, step: int, zaid: int) -> SummaryNuclideData | None:
         """Get specific actinide nuclide data at a step."""
         inventory = self.get_inventory_at_step(step)
         if inventory:
@@ -280,7 +279,7 @@ class Table220Parser:
                     return nuclide
         return None
     
-    def get_nonactinide_nuclide_at_step(self, step: int, zaid: int) -> Optional[SummaryNuclideData]:
+    def get_nonactinide_nuclide_at_step(self, step: int, zaid: int) -> SummaryNuclideData | None:
         """Get specific non-actinide nuclide data at a step."""
         inventory = self.get_inventory_at_step(step)
         if inventory:
@@ -289,7 +288,7 @@ class Table220Parser:
                     return nuclide
         return None
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert parsed data to dictionary."""
         return {
             'summary_inventories': [

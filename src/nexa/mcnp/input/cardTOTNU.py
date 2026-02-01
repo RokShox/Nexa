@@ -1,4 +1,4 @@
-from typing import Optional, TextIO
+from typing import TextIO
 
 
 class TOTNUCard:
@@ -10,7 +10,7 @@ class TOTNUCard:
     neutrons are sampled for all fissionable nuclides.
     """
     
-    def __init__(self, value: Optional[str] = None):
+    def __init__(self, value: str | None = None):
         """
         Initialize a TOTNU card.
         
@@ -21,7 +21,7 @@ class TOTNUCard:
         """
         self.value = self._validate_and_set_value(value)
     
-    def _validate_and_set_value(self, value: Optional[str]) -> Optional[str]:
+    def _validate_and_set_value(self, value: str | None) -> str | None:
         """
         Validate and set the TOTNU value.
         
@@ -64,7 +64,7 @@ class TOTNUCard:
         """Check if the card is set to use only prompt nu."""
         return self.value == "NO"
     
-    def get_value(self) -> Optional[str]:
+    def get_value(self) -> str | None:
         """Get the current TOTNU value."""
         return self.value
     
