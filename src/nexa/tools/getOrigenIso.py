@@ -36,10 +36,12 @@ def main():
     out_name = args.file
     case_name = Path(out_name).stem
     
-    reCase: re = re.compile(r'^(?P<series>\w+)(?P<index>\d{2})b(?P<step>\d{2})z(?P<zone>\d{2})d(?P<depl>\d)$')
+    # Only two-letter series names are supported here
+    reCase: re = re.compile(r'^(?P<series>\w{2})(?P<calc>[ksv])(?P<index>\d{2})b(?P<step>\d{2})d(?P<depl>\d)z(?P<zone>\d{2})$')
     match = reCase.match(case_name)
     if match:
         case_series: str = f"{match.group('series')}"
+        case_calc: str = f"{match.group('calc')}"
         case_index: int = int(f"{match.group('index')}")
         case_step: int = int(f"{match.group('step')}")
         case_zone: int = int(f"{match.group('zone')}")
@@ -72,26 +74,31 @@ def main():
     nuclide_table: NuclideConcentrationTable = conc_data.nuclide_table(NuclideType.TOTAL)
     concentrations = nuclide_table.concentrations # Dict[str, List[float]]
  
-    con: Constituent = Constituent(f"{case_name}Iso", CompositionMode.Atom)
+    # Need separate Constituent instances for Origen iso file and MCNP material card  
+    con_origen: Constituent = Constituent(f"{case_name}Iso", CompositionMode.Atom)
+    con_mcnp: Constituent = Constituent(f"{case_name}BurnMat", CompositionMode.Atom)
     for isotope, concentration in concentrations.items():
-        za = ScaleZaid.get_zaid(isotope)
-        if za:
-            if not LibEndf81.is_missing_zaid(za):
+        iso = isos.get(isotope, None)
+        if iso:
+            con_origen.add(iso, concentration[-1])  # Use last time step concentration
+            if not LibEndf81.is_missing_zaid(iso.zaid):
                 # Get the last time step concentration
-                con.add(isos[isotope], concentration[-1])
+                con_mcnp.add(iso, concentration[-1])
         else:
             print(f"Skipping unknown isotope '{isotope}' in file: {out_name}")
-    con.seal()
+    con_origen.seal()
+    con_mcnp.seal()
 
     avogadro: float = 0.602214076
     atom_den: float = nuclide_table.totals[-1]
-    mass_den: float = atom_den * con.a_value / avogadro
+    mass_den: float = atom_den * con_origen.a_value / avogadro
     # No need to print isos from a predictor case in Origen format
     # These isos will be used in the following predictor step 
     if case_depl == 1:
-        origen_iso_name = f"{case_series}{case_index:02d}b{next_step:02d}z{case_zone:02d}d{next_depl}Isos"
+        origen_iso_name = f"{case_series}{case_calc}{case_index:02d}b{next_step:02d}d{next_depl}z{case_zone:02d}Isos"
         with open(f"{origen_iso_name}", "w", encoding="utf-8") as o:
-            con_isos: Dict[str, Tuple[Isotope, float, float]] = con.isotopes()
+            print(f"Origen isotope file {origen_iso_name} for next step generated from {out_name}")
+            con_isos: Dict[str, Tuple[Isotope, float, float]] = con_origen.isotopes()
             nper = 4
             line = "    "
             for i, (iso, mass_frac, atom_frac) in enumerate(con_isos.values()):
@@ -101,10 +108,12 @@ def main():
                     line = "    "
     
     # Write MCNP material cards for each burn zone all to one file
-    mcnp_iso_name = f"{case_series}{case_index:02d}b{next_step:02d}d{next_depl}BurnMat"
+    # Note the first zone must be processed first to create the file (ugly)
+    mcnp_iso_name = f"{case_series}{case_calc}{case_index:02d}b{next_step:02d}d{next_depl}BurnMat"
+    print(f"Writing MCNP material card to {mcnp_iso_name}")
     with open(f"{mcnp_iso_name}", "a" if case_zone > 1 else "w", encoding="utf-8") as o:
         ext81: str = LibEndf81.ext_by_tempC(args.tempC)
-        m = MaterialCard(100+case_zone, con)
+        m = MaterialCard(100+case_zone, con_mcnp)
         m.set_library("NLIB", ext81)
         print(f"c    Zone {case_zone:d} MassDen {mass_den:10.6e} AtomDen {atom_den:10.6e}", file=o)
         print(m.to_string(), file=o)

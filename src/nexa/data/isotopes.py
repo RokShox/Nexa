@@ -1,7 +1,7 @@
 from ruamel.yaml import YAML
 
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional
 import re
 
 from nexa.data import Isotope
@@ -88,13 +88,13 @@ class Isotopes(dict):
     def a(self, iso: str) -> int:
         return self[self.__normalize_key(iso)].a
 
-    def iso_by_szaid(self, szaid: int) -> Isotope:
+    def iso_by_szaid(self, szaid: int) -> Optional[Isotope]:
         for iso in self.values():
             if iso.szaid == szaid:
                 return iso
         return None
 
-    def iso_by_zaid(self, zaid: int) -> Isotope:
+    def iso_by_zaid(self, zaid: int) -> Optional[Isotope]:
         for iso in self.values():
             if iso.zaid == zaid:
                 return iso
@@ -121,3 +121,15 @@ class Isotopes(dict):
         # ensure metastable iso listed after ground state iso
         iso_list.sort(key=lambda x: x.za * 10 + x.s)
         return iso_list
+
+    def szaid_to_zaid(self, szaid: int) -> Optional[int]:
+        iso = self.iso_by_szaid(szaid)
+        if iso:
+            return iso.zaid
+        return None
+    
+    def zaid_to_szaid(self, zaid: int) -> Optional[int]:
+        iso = self.iso_by_zaid(zaid)
+        if iso:
+            return iso.szaid
+        return None

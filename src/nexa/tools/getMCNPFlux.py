@@ -64,10 +64,12 @@ def main():
         #     print()
 
         # Output for ORIGEN
-        reCase: re = re.compile(r'^(?P<series>\w+)(?P<index>\d{2})b(?P<step>\d{2})d(?P<depl>\d)$')
+        # Only two-letter series names are supported here
+        reCase: re = re.compile(r'^(?P<series>\w{2})(?P<calc>[ksv])(?P<index>\d{2})b(?P<step>\d{2})d(?P<depl>\d)$')
         match = reCase.match(mctal.case)
         if match:
             case_series: str = f"{match.group('series')}"
+            case_calc: str = f"{match.group('calc')}"
             case_index: int = int(f"{match.group('index')}")
             case_step: int = int(f"{match.group('step')}")
             case_depl: int = int(f"{match.group('depl')}")
@@ -82,7 +84,7 @@ def main():
             iter_gen = it.iter_coords(free, fixed, format="tuple")
 
             for f in range(it.sizes["F"]):
-                case_name = f"{case_series}{case_index:02d}b{case_step:02d}z{f+1:02d}d{case_depl}Flux"
+                case_name = f"{case_series}{case_calc}{case_index:02d}b{case_step:02d}d{case_depl}z{f+1:02d}Flux"
                 with open(f"{case_name}", 'w', encoding='utf-8') as o:
                     flux = []
                     # open output file
