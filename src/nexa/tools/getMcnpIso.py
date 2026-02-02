@@ -17,29 +17,65 @@ def main():
     isos: Isotopes = Isotopes()
     elms: Elements = Elements()
 
-    # run_dir = Path(r'D:\Projects\Ampera\Run\v1.0')
-    run_dir: Path = Path(r'D:\Projects\DeepFission\Run\v1.1')
-    os.chdir(run_dir)
+    parser = argparse.ArgumentParser(prog="getMcnpIso", description="Parse Mcnp burn output files for isotope concentrations.")
+    parser.add_argument("file", metavar="FILE", type=str, help="Path to the Mcnp output file to parse")
+    args = parser.parse_args()
 
-    out_name: str = sys.argv[1] if len(sys.argv) > 1 else print ("Usage: getMcnpIso.py <output_name>") & sys.exit(1)
+    out_name: str = args.file
     if not out_name.endswith('o'):
         out_name += 'o'
     case_name: str = out_name[:-1]
 
     with open(out_name, 'r') as f:
-        sample_lines: list[str] =  [line.rstrip('\n') for line in f]
+        lines: list[str] =  [line.rstrip('\n') for line in f]
+
+    # class SummaryInventory:
+    #     """Data class representing complete summary inventory for all materials at a specific step."""
+    #     step: int
+    #     time_days: float
+    #     power_mw: float
+    #     total_volume_cm3: float
+    #     actinide_nuclides: dict[str,SummaryNuclideData] = field(default_factory=dict)
+    #     actinide_totals: SummaryTotals | None = None
+    #     nonactinide_nuclides: dict[str,SummaryNuclideData] = field(default_factory=dict)
+    #     nonactinide_totals: SummaryTotals | None = None
+
+    # class SummaryNuclideData:
+    #     """Data class representing summary nuclide inventory data for all materials."""
+    #     symbol: str
+    #     number: int
+    #     zaid: int
+    #     mass_gm: float
+    #     activity_ci: float
+    #     spec_activity_ci_gm: float
+    #     atom_density_a_b_cm: float
+    #     atom_fraction: float
+    #     mass_fraction: float
+
+    # class SummaryTotals:
+    #     """Data class representing summary totals for all materials."""
+    #     mass_gm: float
+    #     activity_ci: float
+    #     spec_activity_ci_gm: float
+    #     atom_density_a_b_cm: float
+    #     atom_fraction: float
+    #     mass_fraction: float
 
     parser = Table220Parser()
-    inventories = parser.parse_lines(sample_lines)
+    inventories: list[SummaryInventory] = parser.parse_lines(lines)
     
     print(f"Found {len(inventories)} summary inventories:")
     for inv in inventories:
-        print(f"  Step {inv.step}: {len(inv.actinide_nuclides)} actinides, {len(inv.nonactinide_nuclides)} non-actinides")
-        if inv.actinide_totals:
-            print(f"    Actinide total mass: {inv.actinide_totals.mass_gm:.2e} gm")
-        if inv.nonactinide_totals:
-            print(f"    Non-actinide total mass: {inv.nonactinide_totals.mass_gm:.2e} gm")
-    
+        print(f"  Step {inv.step}: Time {inv.time_days} [d] Power {inv.power_mw} [MW]  Total Volume {inv.total_volume_cm3:.4e} [cm3]")
+        actinides = inv.nuclides_by_type("actinide")
+        nonactinides = inv.nuclides_by_type("nonactinide")
+        if actinides:
+            print(f"    U-233 total mass: {actinides['u-233'].mass_gm:.2e} [g]")
+            print(f"    Pa-233 total mass: {actinides['pa-233'].mass_gm:.2e} [g]")
+        # if inv.nonactinide_totals:
+        #     print(f"    Non-actinide total mass: {inv.nonactinide_totals.mass_gm:.2e} gm")
+    sys.exit(0) 
+
     print(f"\nAvailable steps: {parser.get_all_steps()}")
 
     step: int = len(inventories) - 1
@@ -86,13 +122,51 @@ def main():
 
     # Table210Parser
 
+    # class NeutronicsData:
+    #     """Data class representing neutronics and burnup data for a step."""
+    #     step: int
+    #     duration_days: float
+    #     time_days: float
+    #     power_mw: float
+    #     keff: float
+    #     flux: float
+    #     ave_nu: float
+    #     ave_q: float
+    #     burnup_gwd_mtu: float
+    #     source_nts_sec: float
+
+    # class MaterialBurnupData:
+    #     """Data class representing individual material burnup data for a step."""
+    #     step: int
+    #     duration_days: float
+    #     time_days: float
+    #     power_fraction: float
+    #     burnup_gwd_mtu: float
+
+    # class MaterialInventory:
+    #     """Data class representing complete inventory for a material at a specific step."""
+    #     material_id: int
+    #     step: int
+    #     time_days: float
+    #     power_mw: float
+    #     volume_cm3: float
+    #     actinide_nuclides: list[NuclideInventoryData] = field(default_factory=list)
+    #     actinide_totals: InventoryTotals | None = None
+    #     nonactinide_nuclides: list[NuclideInventoryData] = field(default_factory=list)
+    #     nonactinide_totals: InventoryTotals | None = None
+
     parser210 = Table210Parser()
-    neutronics_data, material_burnup_data, material_inventories = parser210.parse_lines(sample_lines)
-    # d: Dict = parser210.to_dict()
+    # tuple[list[NeutronicsData], dict[int, list[MaterialBurnupData]], dict[int, list[MaterialInventory]]]
+    #   list[NeutronicsData] indexed by step
+    #   dict[int, list[MaterialBurnupData]] keyed by material_id, indexed by step
+    #   dict[int, list[MaterialInventory]] keyed by material_id, indexed by step
+    neutronics_data, material_burnup_data, material_inventories = parser210.parse_lines(lines)
+    
+    # d: dict = parser210.to_dict()
     print(f"\nNeutronics Data:\n{neutronics_data[-1]}")
     
     # print(f"\nMaterial Burnup Data for Material 101 at last step:")
-    # mat1_burnup_list: List[MaterialBurnupData] = material_burnup_data.get(101, [])
+    # mat1_burnup_list: list[MaterialBurnupData] = material_burnup_data.get(101, [])
     # if mat1_burnup_list:
     #     print(mat1_burnup_list[-1])
 

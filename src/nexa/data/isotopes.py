@@ -13,6 +13,7 @@ class Isotopes(dict):
     value: Isotope - isotope instance
     """
 
+    type ISODATA = tuple[str, int, int, int, int, int, float]
     _initialized: bool = False
 
     def __new__(cls):
@@ -30,8 +31,9 @@ class Isotopes(dict):
             raw_dict: dict[str, list] = yaml.load(p)
             # Store Isotope instances
             for key, value in raw_dict.items():
-                sym = self.__normalize_key(key)
-                iso_data = Isotope(sym, tuple(value))
+                sym = self.__normalize_key(value[0])
+                value[0] = sym  # ensure symbol normalized
+                iso_data = Isotope(tuple(value))
                 super().__setitem__(sym, iso_data)
 
     def __getitem__(self, key: str) -> Isotope:
@@ -45,7 +47,7 @@ class Isotopes(dict):
         raise RuntimeError("Setting not allowed")
 
     # no deletion
-    def __delitem__(self):
+    def __delitem__(self, key: str):
         raise RuntimeError("Deletion not allowed")
 
     # no update
@@ -53,11 +55,11 @@ class Isotopes(dict):
         raise RuntimeError("Update not allowed")
 
     # no pop
-    def pop(self, s=None):
+    def pop(self, key: str = None):
         raise RuntimeError("Deletion not allowed")
 
     # no popitem
-    def popitem(self, s=None):
+    def popitem(self, key: str = None):
         raise RuntimeError("Deletion not allowed")
 
     # no setdefault
@@ -131,4 +133,16 @@ class Isotopes(dict):
         iso = self.iso_by_zaid(zaid)
         if iso:
             return iso.szaid
+        return None
+    
+    def zaid_to_symbol(self, zaid: int) -> str | None:
+        iso = self.iso_by_zaid(zaid)
+        if iso:
+            return iso.symbol
+        return None
+    
+    def szaid_to_symbol(self, szaid: int) -> str | None:
+        iso = self.iso_by_szaid(szaid)
+        if iso:
+            return iso.symbol
         return None

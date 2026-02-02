@@ -10,25 +10,28 @@ class Isotope:
     Implements IConstituent interface.
 
     symbol: str - isotope symbol
-    zaid: int - zaid
-    amu: float - atomic mass units
+    szaid: int - szaid
+    zaid: int - MCNP zaid
+    s: int - metastable state
     z: int - atomic number
     a: int - mass number
+    amu: float - atomic mass units
     """
-    _SZAID = 0
-    _ZAID = 1
-    _S = 2
-    _Z = 3
-    _A = 4
-    _AMU = 5
-    # (szaid, mcnp_zaid, s, z, a, amu)
-    _iso_data: tuple[int, int, int, int, int, float] = ()
-    _symbol: str = ""
 
-    def __init__(self, symbol: str, iso_data: tuple[int, int, int, int, int, float]) -> None:
+    type ISODATA = tuple[str, int, int, int, int, int, float]
+    _SYMBOL = 0
+    _SZAID = 1
+    _ZAID = 2
+    _S = 3
+    _Z = 4
+    _A = 5
+    _AMU = 6
+    # (symbol, szaid, mcnp_zaid, s, z, a, amu)
+    _iso_data: ISODATA = ()
+
+    def __init__(self, iso_data: ISODATA) -> None:
         """All initialization is done in the constructor.  No updates are allowed."""
-        self._symbol: str = symbol
-        self._iso_data: tuple[int, int, int, int, int, float] = iso_data
+        self._iso_data = iso_data
 
     def __str__(self):
         return f"symbol({self.symbol}) z({self.z}) a({self.a}) szaid({self.szaid}) amu({self.amu})"
@@ -41,7 +44,7 @@ class Isotope:
     @property
     def symbol(self) -> str:
         """Isotope symbol (read only)."""
-        return self._symbol
+        return self._iso_data[self._SYMBOL]
 
     @property
     def szaid(self) -> int:
@@ -61,7 +64,7 @@ class Isotope:
     @property
     def element(self) -> str:
         """Element symbol (read only)."""
-        return self._symbol.split("-")[0]
+        return self._iso_data[self._SYMBOL].split("-")[0]
 
     @property
     def s(self) -> int:

@@ -1,10 +1,13 @@
 import re
 from dataclasses import dataclass, field
+from nexa.data import Isotopes
 
+isos: Isotopes = Isotopes()
 
 @dataclass
 class SummaryNuclideData:
     """Data class representing summary nuclide inventory data for all materials."""
+    symbol: str
     number: int
     zaid: int
     mass_gm: float
@@ -33,12 +36,12 @@ class SummaryInventory:
     time_days: float
     power_mw: float
     total_volume_cm3: float
-    actinide_nuclides: list[SummaryNuclideData] = field(default_factory=list)
+    actinide_nuclides: dict[str,SummaryNuclideData] = field(default_factory=dict)
     actinide_totals: SummaryTotals | None = None
-    nonactinide_nuclides: list[SummaryNuclideData] = field(default_factory=list)
+    nonactinide_nuclides: dict[str,SummaryNuclideData] = field(default_factory=dict)
     nonactinide_totals: SummaryTotals | None = None
 
-    def nuclides_by_type(self, type: str) -> list[SummaryNuclideData]:
+    def nuclides_by_type(self, type: str) -> dict[str,SummaryNuclideData]:
         """Get nuclides by type: 'actinide' or 'nonactinide'."""
         if type == "actinide":
             return self.actinide_nuclides
@@ -138,9 +141,9 @@ class Table220Parser:
                         nuclide = self._parse_inventory_data_line(line)
                         if nuclide:
                             if self._inventory_type == "actinide":
-                                self._current_inventory.actinide_nuclides.append(nuclide)
+                                self._current_inventory.actinide_nuclides[nuclide.symbol] = nuclide
                             else:
-                                self._current_inventory.nonactinide_nuclides.append(nuclide)
+                                self._current_inventory.nonactinide_nuclides[nuclide.symbol] = nuclide
         
         return self.summary_inventories
     
@@ -229,6 +232,7 @@ class Table220Parser:
                 return None
             
             return SummaryNuclideData(
+                symbol=isos.zaid_to_symbol(int(parts[1])),
                 number=int(parts[0]),
                 zaid=int(parts[1]),
                 mass_gm=float(parts[2]),
@@ -299,6 +303,7 @@ class Table220Parser:
                     'total_volume_cm3': inv.total_volume_cm3,
                     'actinide_nuclides': [
                         {
+                            'symbol': n.symbol,
                             'number': n.number,
                             'zaid': n.zaid,
                             'mass_gm': n.mass_gm,
@@ -320,6 +325,7 @@ class Table220Parser:
                     } if inv.actinide_totals else None,
                     'nonactinide_nuclides': [
                         {
+                            'symbol': n.symbol,
                             'number': n.number,
                             'zaid': n.zaid,
                             'mass_gm': n.mass_gm,
