@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ruamel.yaml import YAML
+from ruamel.yaml import YAML # type: ignore
 
 
 class LibEndf81:
@@ -15,8 +15,7 @@ class LibEndf81:
     raw_dict: dict[str, tuple[float, float]] = yaml.load(p)
     # Store sabids
     for key, entry in raw_dict.items():
-        val = tuple(entry)
-        _endf81_sabid[key.strip().lower()] = val
+        _endf81_sabid[key.strip().lower()] = entry
 
     _endf81_ext: dict[str, float] = {
         "15c": 0.10,
@@ -28,7 +27,7 @@ class LibEndf81:
         "13c": 1200.00,
         "14c": 2500.00,
     }
-    _endf81_ext = sorted(((ext, temp) for ext, temp in _endf81_ext.items()), key=lambda x: x[1])
+    _endf81_ext = dict(sorted(((ext, temp) for ext, temp in _endf81_ext.items()), key=lambda x: x[1]))
 
     _missing_zaid = [
         12023,
@@ -90,11 +89,11 @@ class LibEndf81:
         raise TypeError(f"{cls.__name__} cannot be instantiated")
 
     @classmethod
-    def ext_by_tempK(cls, tempK: float) -> float:
+    def ext_by_tempK(cls, tempK: float) -> str:
         """Get ENDF/B-VIII.1 thermal extension factor by temperature in K."""
 
-        prev_ext = cls._endf81_ext[0][0]
-        for ext, temp in cls._endf81_ext:
+        prev_ext = list(cls._endf81_ext.keys())[0]
+        for ext, temp in cls._endf81_ext.items():
             if tempK == temp:
                 return ext
             elif temp > tempK:
@@ -103,7 +102,7 @@ class LibEndf81:
         return prev_ext
 
     @classmethod
-    def ext_by_tempC(cls, tempC: float) -> float:
+    def ext_by_tempC(cls, tempC: float) -> str:
         """Get ENDF/B-VIII.1 thermal extension factor by temperature in C."""
 
         tempK = tempC + 273.15

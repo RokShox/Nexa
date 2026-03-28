@@ -1,58 +1,52 @@
-from pathlib import Path
-import sys
-
-from nexa.data import Isotopes, Elements, Abundances
+from nexa.data import Isotope, abundances, elements
+from nexa.data.isotopes import iso_by_a, iso_by_element, iso_by_symbol, iso_by_z, isotopes
 from nexa.globals import CompositionMode
 from nexa.material import Constituent
 
-abund: Abundances = Abundances()
-isos: Isotopes = Isotopes()
-elms: Elements = Elements()
-
 
 def main():
-    # print(f"am242: {isos['am242']}")
-    # print(f"am-242 zaid: {isos.zaid('am-242')}")
-    # print(f"am-242 amu: {isos.amu('am-242')}")
-    # print(f"am242 zaid: {isos.zaid('am242')}")
-    # print(f"am242m zaid: {isos.zaid('am242m')}")
-    # print(f"c zaid: {isos.zaid('c')}")
-    # print(f"c12: {isos['c12']}")
+    print(f"am242: {isotopes['am242']}")
+    print(f"am-242 zaid: {isotopes['am-242'].zaid}")
+    print(f"am-242 amu: {isotopes['am-242'].amu}")
+    print(f"am242 zaid: {isotopes['am242'].zaid}")
+    print(f"am242m zaid: {isotopes['am242m'].zaid}")
+    print(f"c zaid: {isotopes['c-12'].zaid}")
+    print(f"c12: {isotopes['c12']}")
 
-    # sym: str = "U235"
-    # iso: Isotope = isos[sym]
-    # print(f"iso: {iso}")
-    # print(f"{iso = }")
+    sym: str = "U235"
+    iso: Isotope = iso_by_symbol(sym)
+    print(f"iso: {iso}")
+    print(f"{iso = }")
 
-    # print("\n".join([f"{iso.symbol}" for iso in isos.iso_by_element("Co")]))
-    # print("\n".join([f"{iso.symbol}" for iso in isos.iso_by_a(242)]))
-    # print("\n".join([f"{iso.symbol}" for iso in isos.iso_by_z(95)]))
+    print("\n".join([f"{iso.symbol}" for iso in iso_by_element("Co")]))
+    print("\n".join([f"{iso.symbol}" for iso in iso_by_a(242)]))
+    print("\n".join([f"{iso.symbol}" for iso in iso_by_z(95)]))
 
-    # print(f"element: {iso.element}")
+    print(f"element: {iso.element}")
 
-    # print(f"am: {elms['am']}")
-    # print(f"Am: {elms['Am']}")
+    print(f"am: {elements['am']}")
+    print(f"Am: {elements['Am']}")
 
-    # conH: Constituent = Constituent("H", 1, CompositionMode.Atom)
-    # conH.add(isos["h-1"], 0.99).add(isos["h-2"], 0.01).seal()
-    # print(f"{conH = }")
+    conH: Constituent = Constituent("H", CompositionMode.Atom)
+    conH.add(isotopes["h-1"], 0.99).add(isotopes["h-2"], 0.01).seal()
+    print(f"{conH = }")
 
-    # conO: Constituent = Constituent("O", 1, CompositionMode.Mass)
-    # conO.add(isos["o-16"], 0.99).add(isos["o-17"], 0.01).seal()
-    # print(f"{conO = }")
+    conO: Constituent = Constituent("O", CompositionMode.Mass)
+    conO.add(isotopes["o-16"], 0.99).add(isotopes["o-17"], 0.01).seal()
+    print(f"{conO = }")
 
-    # conH2O: Constituent = Constituent("H2O", 2, CompositionMode.Atom)
-    # conH2O.add(conH, 0.667).add(conO, 0.333).seal()
-    # print(f"{conH2O = }")
+    conH2O: Constituent = Constituent("H2O", CompositionMode.Atom)
+    conH2O.add(conH, 0.667).add(conO, 0.333).seal()
+    print(f"{conH2O = }")
 
-    con_ta: Constituent = abund["Ta"]
-    con_be: Constituent = abund["be"]
+    con_ta: Constituent = abundances["Ta"]
+    con_be: Constituent = abundances["Be"]
     con_tabe = Constituent("TaBe", CompositionMode.Mass)
     con_tabe.add(con_ta, 0.5).add(con_be, 0.5).seal()
     print(f"{con_tabe = }")
 
-    con_na: Constituent = abund["Na"]
-    con_cl: Constituent = abund["Cl"]
+    con_na: Constituent = abundances["Na"]
+    con_cl: Constituent = abundances["Cl"]
     con_nacl = Constituent("NaCl", CompositionMode.Atom)
     con_nacl.add(con_na, 1.0).add(con_cl, 1.0).seal()
     print(f"{con_nacl = }")
@@ -60,9 +54,9 @@ def main():
     conMat: Constituent = Constituent("Mix", CompositionMode.Mass)
     conMat.add(con_tabe, 0.5).add(con_nacl, 0.5).seal()
 
-    con_c: Constituent = abund["C"]
-    con_h: Constituent = abund["H"]
-    con_n: Constituent = abund["N"]
+    con_c: Constituent = abundances["C"]
+    con_h: Constituent = abundances["H"]
+    con_n: Constituent = abundances["N"]
     con_acryl: Constituent = Constituent("Acrylonitrile", CompositionMode.Atom)
     con_acryl.add(con_c, 3.0 / 7.0).add(con_h, 3.0 / 7.0).add(con_n, 1.0 / 7.0).seal()
     con_butad: Constituent = Constituent("Butadiene", CompositionMode.Atom)
@@ -82,14 +76,14 @@ def main():
     # con_rubber.demote().display(sys.stdout)
     # con_rubber.demote().demote().display(sys.stdout)
 
-    cl = abund["cl"]
-    na = abund["na"]
+    cl = abundances["cl"]
+    na = abundances["na"]
     salt = Constituent("salt", CompositionMode.Atom)
     salt.add(na, 1).add(cl, 1).seal()
     salt.display()
 
-    sn = abund["sn"]
-    cu = abund["cu"]
+    sn = abundances["sn"]
+    cu = abundances["cu"]
     bronze = Constituent("bronze", CompositionMode.Mass)
     bronze.add(cu, 0.88).add(sn, 0.12).seal()
     bronze.display()
@@ -101,20 +95,20 @@ def main():
     salty_bronze.demote().display()
 
     salty_bronze_ta = Constituent("salty_bronze_ta", CompositionMode.Mass)
-    salty_bronze_ta.add(salty_bronze, 0.99).add(abund["ta"], 0.9).seal()
+    salty_bronze_ta.add(salty_bronze, 0.99).add(abundances["ta"], 0.9).seal()
     salty_bronze_ta.display()
 
     ss316h = Constituent("ss316h", CompositionMode.Mass)
     (
-        ss316h.add(abund["c"], 0.00070)
-        .add(abund["cr"], 0.17000)
-        .add(abund["fe"], 0.65605)
-        .add(abund["mn"], 0.02000)
-        .add(abund["mo"], 0.02500)
-        .add(abund["ni"], 0.12000)
-        .add(abund["p"], 0.00045)
-        .add(abund["s"], 0.00030)
-        .add(abund["si"], 0.00750)
+        ss316h.add(abundances["c"], 0.00070)
+        .add(abundances["cr"], 0.17000)
+        .add(abundances["fe"], 0.65605)
+        .add(abundances["mn"], 0.02000)
+        .add(abundances["mo"], 0.02500)
+        .add(abundances["ni"], 0.12000)
+        .add(abundances["p"], 0.00045)
+        .add(abundances["s"], 0.00030)
+        .add(abundances["si"], 0.00750)
         .seal()
     )
     ss316h.display()

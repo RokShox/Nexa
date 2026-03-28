@@ -8,7 +8,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}\\src;${env:PYTHONPATH}"
+                "PYTHONPATH": "${workspaceFolder}/src:${env:PYTHONPATH}"
             },
             "args": "${command:pickArgs}",
         },
@@ -17,11 +17,11 @@
             "name": "Python: Main",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}\\src\\nexa\\main.py",
+            "program": "${workspaceFolder}/src/nexa/main.py",
             "console": "integratedTerminal",
             "cwd": "${fileDirname}",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}\\src;${env:PYTHONPATH}"
+                "PYTHONPATH": "${workspaceFolder}/src:${env:PYTHONPATH}"
             }
         },
 
@@ -32,7 +32,7 @@
             "program": "${file}",
             "cwd": "${fileDirname}",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}\\src;${env:PYTHONPATH}"
+                "PYTHONPATH": "${workspaceFolder}/src:${env:PYTHONPATH}"
             },
             "console": "integratedTerminal",
             "args": ["chb04umo"],

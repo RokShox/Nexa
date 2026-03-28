@@ -1,115 +1,124 @@
-from ruamel.yaml import YAML
+from collections import UserDict
+from importlib.resources import files
+from typing import Any
 
-from pathlib import Path
+from ruamel.yaml import YAML  # type: ignore
 
 from nexa.data import Element
 
 
-class Elements(dict):
-    """Class to store elements.
+def _normalize_key(key: str):
+    return key.strip().lower()
 
-    Implements a singleton pattern.
-    Disallows methods that change values.
-    Subclasses dict to represent a Dict[str, Element] where:
+
+class _ReadOnlyElements(UserDict[str, Element]):
+    """Immutable class to store elemental constituents
+
+    Loaded at module level. Do not instantiate.
+
     key: str - element symbol
-    value: Element - Element instance
+    value: Element - Element instance with the isotopes and their abundances
     """
 
-    _initialized: bool = False
+    def __init__(self, data: dict[str, Element]) -> None:
+        # Initialize without calling update, which is overridden to be read-only
+        self.data = dict(data)
 
-    def __new__(cls):
-        """Singleton pattern"""
-        if not hasattr(cls, "instance"):
-            # cls.instance = super(Elements, cls).__new__(cls)
-            cls.instance = super().__new__(cls)
-        return cls.instance
-
-    def __init__(self):
-        """Initialize the Elements.
-
-        For each element, create an Element instance.
-        Initialized from a yaml file generating a Dict[str, List] where:
-            key: str - element symbol (normalized to lower case)
-            value: List - [name, z, zaid, amu]
-
-        Element atomic mass data should not be used except for approximate calculations.
-        Use a Constituent mass instead.
-        """
-        if not self._initialized:
-            self._initialized = True
-            print("initializing Elements")
-            p = Path(__file__).resolve().parent.parent / "resources" / "tblElmNames.yaml"
-            yaml = YAML()
-            raw_dict: dict[str, list] = yaml.load(p)
-            # Store Isotope instances
-            for key, value in raw_dict.items():
-                sym = self.__normalize_key(key)
-                elm = Element(sym, value[0], value[1], value[3])
-                super().__setitem__(self.__normalize_key(key), elm)
-
+    # Override __getitem__ to normalize keys and provide better error messages
     def __getitem__(self, key: str) -> Element:
-        try:
-            return super().__getitem__(self.__normalize_key(key))
-        except KeyError:
-            return None
+        key = _normalize_key(key)
+        if key in self:
+            return super().__getitem__(key)
+        else:
+            raise KeyError(f"No elemental constituent found with symbol '{key}'")
 
-    # no setting
-    def __setitem__(self, key: str, value: Element):
-        raise RuntimeError("Setting not allowed")
+    # Override methods that would modify the dictionary to prevent changes
+    def __setitem__(self, key: Any, value: Any) -> None:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    # no deletion
-    def __delitem__(self):
-        raise RuntimeError("Deletion not allowed")
+    def __delitem__(self, key: Any) -> None:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    # no update
-    def update(self, d: dict):
-        raise RuntimeError("Update not allowed")
+    def update(self, other: Any = None, /, **kwargs: Any) -> None:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    # no pop
-    def pop(self, s=None):
-        raise RuntimeError("Deletion not allowed")
+    def pop(self, key: Any, default: Any = None) -> Any:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    # no popitem
-    def popitem(self, s=None):
-        raise RuntimeError("Deletion not allowed")
+    def popitem(self) -> tuple[Any, Any]:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    # no setdefault
-    def setdefault(self, key, value):
-        raise RuntimeError("Setting not allowed")
+    def clear(self) -> None:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    def __normalize_key(self, key: str):
-        return key.strip().lower()
+    def setdefault(self, key: Any, default: Any = None) -> Any:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    def zaid(self, elm: str) -> int:
-        """Get ZA id by element symbol."""
-        return self[self.__normalize_key(elm)].zaid
 
-    def amu(self, elm: str) -> float:
-        """Get atomic mass by element symbol."""
-        return self[self.__normalize_key(elm)].amu
+def _load_elements() -> dict[str, Element]:
+    """Initialize the Elements.
 
-    def z(self, elm: str) -> int:
-        """Get atomic number by element symbol."""
-        return self[self.__normalize_key(elm)].z
+    For each element, create an Element instance.
+    Initialized from a yaml file generating a Dict[str, List] where:
+        key: str - element symbol (normalized to lower case)
+        value: List - [name, z, zaid, amu]
 
-    def elm_by_zaid(self, zaid: int) -> Element:
-        """Get Element by ZA id."""
-        for elm in self.values():
-            if elm.zaid == zaid:
-                return elm
-        return None
+    Element atomic mass data should not be used except for approximate calculations.
+    Use a Constituent mass instead.
+    """
+    print("initializing Elements")
+    resource = files("nexa.resources") / "tblElmNames.yaml"
+    yaml = YAML()
+    raw_dict: dict[str, list] = yaml.load(resource)
+    d: dict[str, Element] = {}
+    # Store element name, z, amu
+    for key, value in raw_dict.items():
+        sym = _normalize_key(key)
+        elm = Element(sym, value[0], value[1], value[3])
+        if sym in d:
+            raise ValueError(f"Duplicate element symbol: {sym}")
+        d[sym] = elm
+    return d
 
-    def elm_by_z(self, z: int) -> Element:
-        """Get Element by atomic number."""
-        for elm in self.values():
-            if elm.z == z:
-                return elm
-        return None
 
-    def elm_by_name(self, name: str) -> Element:
-        """Get Element by name (normalized)."""
-        nname: str = self.__normalize_key(name)
-        for elm in self.values():
-            if elm.name == nname:
-                return elm
-        return None
+elements: _ReadOnlyElements = _ReadOnlyElements(_load_elements())
+
+
+def zaid_of_elm(elm: str) -> int:
+    """Get ZA id by element symbol."""
+    return elements[_normalize_key(elm)].zaid
+
+
+def amu_of_elm(elm: str) -> float:
+    """Get atomic mass by element symbol."""
+    return elements[_normalize_key(elm)].amu
+
+
+def z_of_elm(elm: str) -> int:
+    """Get atomic number by element symbol."""
+    return elements[_normalize_key(elm)].z
+
+
+def elm_by_zaid(zaid: int) -> Element:
+    """Get Element by ZA id."""
+    for elm in elements.values():
+        if elm.zaid == zaid:
+            return elm
+    raise ValueError(f"No element found with ZAID {zaid}")
+
+
+def elm_by_z(z: int) -> Element:
+    """Get Element by atomic number."""
+    for elm in elements.values():
+        if elm.z == z:
+            return elm
+    raise ValueError(f"No element found with atomic number {z}")
+
+
+def elm_by_name(name: str) -> Element:
+    """Get Element by name (normalized)."""
+    nname: str = _normalize_key(name)
+    for elm in elements.values():
+        if elm.name == nname:
+            return elm
+    raise ValueError(f"No element found with name {name}")

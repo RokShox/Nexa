@@ -1,148 +1,155 @@
-from ruamel.yaml import YAML
-
-from pathlib import Path
 import re
+from collections import UserDict
+from importlib.resources import files
+from typing import Any
 
-from nexa.data import Isotope
+from ruamel.yaml import YAML  # type: ignore
+
+from .isotope import Isotope, IsotopeData
 
 
-class Isotopes(dict):
-    """Class to store isotopes
+def _normalize_key(key: str):
+    nkey: str = key.strip().lower().replace(" ", "")
+    nkey = re.sub(r"([a-z]+)(\d+)(m?)", r"\1-\2\3", nkey)
+    return nkey
+
+
+class _ReadOnlyIsotopes(UserDict[str, Isotope]):
+    """Immutable class to store isotopes
+
+    Loaded at module level. Do not instantiate.
 
     key: str - isotope symbol
     value: Isotope - isotope instance
     """
 
-    type ISODATA = tuple[str, int, int, int, int, int, float]
-    _initialized: bool = False
+    def __init__(self, data: dict[str, Isotope]) -> None:
+        # Initialize without calling update, which is overridden to be read-only
+        self.data = dict(data)
 
-    def __new__(cls):
-        if not hasattr(cls, "instance"):
-            # cls.instance = super(Isotopes, cls).__new__(cls)
-            cls.instance = super().__new__(cls)
-        return cls.instance
-
-    def __init__(self):
-        if not self._initialized:
-            self._initialized = True
-            # print("initializing Isotopes")
-            p = Path(__file__).resolve().parent.parent / "resources" / "tblSCALENuclideMass.yaml"
-            yaml = YAML()
-            raw_dict: dict[str, list] = yaml.load(p)
-            # Store Isotope instances
-            for key, value in raw_dict.items():
-                sym = self.__normalize_key(value[0])
-                value[0] = sym  # ensure symbol normalized
-                iso_data = Isotope(tuple(value))
-                super().__setitem__(sym, iso_data)
-
+    # Override __getitem__ to normalize keys and provide better error messages
     def __getitem__(self, key: str) -> Isotope:
-        try:
-            return super().__getitem__(self.__normalize_key(key))
-        except KeyError:
-            return None
+        key = _normalize_key(key)
+        # Example: provide a default value if key is missing (like defaultdict)
+        if key in self:
+            return super().__getitem__(key)
+        else:
+            raise KeyError(f"No isotope found with symbol '{key}'")
 
-    # no setting
-    def __setitem__(self, key: str, value: Isotope):
-        raise RuntimeError("Setting not allowed")
+    # Override methods that would modify the dictionary to prevent changes
+    def __setitem__(self, key: Any, value: Any) -> None:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    # no deletion
-    def __delitem__(self, key: str):
-        raise RuntimeError("Deletion not allowed")
+    def __delitem__(self, key: Any) -> None:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    # no update
-    def update(self, d: dict):
-        raise RuntimeError("Update not allowed")
+    def update(self, other: Any = None, /, **kwargs: Any) -> None:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    # no pop
-    def pop(self, key: str = None):
-        raise RuntimeError("Deletion not allowed")
+    def pop(self, key: Any, default: Any = None) -> Any:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    # no popitem
-    def popitem(self, key: str = None):
-        raise RuntimeError("Deletion not allowed")
+    def popitem(self) -> tuple[Any, Any]:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    # no setdefault
-    def setdefault(self, key, value):
-        raise RuntimeError("Setting not allowed")
+    def clear(self) -> None:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    def __normalize_key(self, key: str):
-        nkey: str = key.lower().replace(" ", "")
-        nkey = re.sub(r"([a-z]+)(\d+)(m?)", r"\1-\2\3", nkey)
-        return nkey
+    def setdefault(self, key: Any, default: Any = None) -> Any:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    def szaid(self, iso: str) -> int:
-        return self[self.__normalize_key(iso)].szaid
 
-    def zaid(self, iso: str) -> int:
-        return self[self.__normalize_key(iso)].zaid
+def _load_isotopes() -> dict[str, Isotope]:
+    resource = files("nexa.resources") / "tblSCALENuclideMass.yaml"
+    yaml = YAML()
+    raw_dict: dict[str, list] = yaml.load(resource)
+    d: dict[str, Isotope] = {}
+    # Store Isotope instances
+    for key, value in raw_dict.items():
+        sym = _normalize_key(value[0])
+        value[0] = sym  # ensure symbol normalized
+        iso: Isotope = Isotope(IsotopeData(*value))
+        if sym in d:
+            raise ValueError(f"Duplicate isotope symbol: {sym}")
+        d[sym] = iso
+    return d
 
-    def amu(self, iso: str) -> float:
-        return self[self.__normalize_key(iso)].amu
 
-    def s(self, iso: str) -> int:
-        return self[self.__normalize_key(iso)].s
+isotopes: _ReadOnlyIsotopes = _ReadOnlyIsotopes(_load_isotopes())
 
-    def z(self, iso: str) -> int:
-        return self[self.__normalize_key(iso)].z
 
-    def a(self, iso: str) -> int:
-        return self[self.__normalize_key(iso)].a
+# These helpers will have to be imported explicitly
+def iso_by_symbol(symbol: str) -> Isotope:
+    normalized_symbol = _normalize_key(symbol)
+    if normalized_symbol in isotopes:
+        return isotopes[normalized_symbol]
+    else:
+        raise ValueError(f"No isotope found with symbol {symbol}")
 
-    def iso_by_szaid(self, szaid: int) -> Isotope | None:
-        for iso in self.values():
-            if iso.szaid == szaid:
-                return iso
-        return None
 
-    def iso_by_zaid(self, zaid: int) -> Isotope | None:
-        for iso in self.values():
-            if iso.zaid == zaid:
-                return iso
-        return None
+def iso_by_szaid(szaid: int) -> Isotope:
+    for iso in isotopes.values():
+        if iso.szaid == szaid:
+            return iso
+    raise ValueError(f"No isotope found with SZAID {szaid}")
 
-    def iso_by_s(self, s: int) -> list[Isotope]:
-        iso_list = [iso for iso in self.values() if iso.s == s]
-        iso_list.sort(key=lambda x: x.za * 10 + x.s)
-        return iso_list
 
-    def iso_by_z(self, z: int) -> list[Isotope]:
-        iso_list = [iso for iso in self.values() if iso.z == z]
-        iso_list.sort(key=lambda x: x.za * 10 + x.s)
-        return iso_list
+def iso_by_zaid(zaid: int) -> Isotope:
+    for iso in isotopes.values():
+        if iso.zaid == zaid:
+            return iso
+    raise ValueError(f"No isotope found with ZAID {zaid}")
 
-    def iso_by_a(self, a: int) -> list[Isotope]:
-        iso_list = [iso for iso in self.values() if iso.a == a]
-        iso_list.sort(key=lambda x: x.za * 10 + x.s)
-        return iso_list
 
-    def iso_by_element(self, element: str) -> list[Isotope]:
-        normalized_element = element.lower()
-        iso_list = [iso for iso in self.values() if iso.element() == normalized_element]
-        # ensure metastable iso listed after ground state iso
-        iso_list.sort(key=lambda x: x.za * 10 + x.s)
-        return iso_list
+def iso_by_s(s: int) -> list[Isotope]:
+    iso_list = [iso for iso in isotopes.values() if iso.s == s]
+    iso_list.sort(key=lambda x: x.za * 10 + x.s)
+    return iso_list
 
-    def szaid_to_zaid(self, szaid: int) -> int | None:
-        iso = self.iso_by_szaid(szaid)
-        if iso:
-            return iso.zaid
-        return None
-    
-    def zaid_to_szaid(self, zaid: int) -> int | None:
-        iso = self.iso_by_zaid(zaid)
-        if iso:
-            return iso.szaid
-        return None
-    
-    def zaid_to_symbol(self, zaid: int) -> str | None:
-        iso = self.iso_by_zaid(zaid)
-        if iso:
-            return iso.symbol
-        return None
-    
-    def szaid_to_symbol(self, szaid: int) -> str | None:
-        iso = self.iso_by_szaid(szaid)
-        if iso:
-            return iso.symbol
-        return None
+
+def iso_by_z(z: int) -> list[Isotope]:
+    iso_list = [iso for iso in isotopes.values() if iso.z == z]
+    iso_list.sort(key=lambda x: x.za * 10 + x.s)
+    return iso_list
+
+
+def iso_by_a(a: int) -> list[Isotope]:
+    iso_list = [iso for iso in isotopes.values() if iso.a == a]
+    iso_list.sort(key=lambda x: x.za * 10 + x.s)
+    return iso_list
+
+
+def iso_by_element(element: str) -> list[Isotope]:
+    normalized_element = element.strip().lower()
+    iso_list = [iso for iso in isotopes.values() if iso.element == normalized_element]
+    # ensure metastable iso listed after ground state iso
+    iso_list.sort(key=lambda x: x.za * 10 + x.s)
+    return iso_list
+
+
+def szaid_to_zaid(szaid: int) -> int:
+    iso = iso_by_szaid(szaid)
+    if iso:
+        return iso.zaid
+    raise ValueError(f"No isotope found with SZAID {szaid}")
+
+
+def zaid_to_szaid(zaid: int) -> int:
+    iso = iso_by_zaid(zaid)
+    if iso:
+        return iso.szaid
+    raise ValueError(f"No isotope found with ZAID {zaid}")
+
+
+def zaid_to_symbol(zaid: int) -> str:
+    iso = iso_by_zaid(zaid)
+    if iso:
+        return iso.symbol
+    raise ValueError(f"No isotope found with ZAID {zaid}")
+
+
+def szaid_to_symbol(szaid: int) -> str:
+    iso = iso_by_szaid(szaid)
+    if iso:
+        return iso.symbol
+    raise ValueError(f"No isotope found with SZAID {szaid}")

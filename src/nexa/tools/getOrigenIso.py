@@ -4,9 +4,10 @@ import sys
 import code
 from pathlib import Path
 import argparse
+from typing import Optional
 
 from nexa.globals import CompositionMode
-from nexa.data import Abundances, Elements, Isotope, Isotopes, LibEndf80, LibEndf81
+from nexa.data import abundances, elements, Isotope, isotopes, LibEndf80, LibEndf81
 from nexa.material import Constituent
 from nexa.scale.data import ScaleZaid
 from nexa.scale.origen.origen_parser import (
@@ -18,10 +19,6 @@ from nexa.scale.origen.origen_parser import (
     OrigenParser,
 )
 from nexa.mcnp.input.cardM import MaterialCard
-
-abund: Abundances = Abundances()
-isos: Isotopes = Isotopes()
-elms: Elements = Elements()
 
 
 def main():
@@ -36,7 +33,7 @@ def main():
     case_name = Path(out_name).stem
     
     # Only two-letter series names are supported here
-    reCase: re = re.compile(r'^(?P<series>\w{2})(?P<calc>[ksv])(?P<index>\d{2})b(?P<step>\d{2})d(?P<depl>\d)z(?P<zone>\d{2})$')
+    reCase = re.compile(r'^(?P<series>\w{2})(?P<calc>[ksv])(?P<index>\d{2})b(?P<step>\d{2})d(?P<depl>\d)z(?P<zone>\d{2})$')
     match = reCase.match(case_name)
     if match:
         case_series: str = f"{match.group('series')}"
@@ -66,18 +63,20 @@ def main():
 
     # First case is irradiation
     case: CaseOverview = cases[0]
-    conc_data: OrigenConcentrationData = case.concentration_data_by_units(OrigenConcentrationUnits.ATOMS_PER_BARN_CM)
+    conc_data: Optional[OrigenConcentrationData] = case.concentration_data_by_units(OrigenConcentrationUnits.ATOMS_PER_BARN_CM)
     if conc_data is None:
         raise ValueError(f"No concentration data found for ATOMS_PER_BARN_CM in case: {case.case_id}")
 
-    nuclide_table: NuclideConcentrationTable = conc_data.nuclide_table(NuclideType.TOTAL)
+    nuclide_table: Optional[NuclideConcentrationTable] = conc_data.nuclide_table(NuclideType.TOTAL)
+    if nuclide_table is None:
+        raise ValueError(f"No nuclide table found for TOTAL in case: {case.case_id}")
     concentrations = nuclide_table.concentrations # Dict[str, List[float]]
  
     # Need separate Constituent instances for Origen iso file and MCNP material card  
     con_origen: Constituent = Constituent(f"{case_name}Iso", CompositionMode.Atom)
     con_mcnp: Constituent = Constituent(f"{case_name}BurnMat", CompositionMode.Atom)
     for isotope, concentration in concentrations.items():
-        iso = isos.get(isotope, None)
+        iso = isotopes.get(isotope, None)
         if iso:
             con_origen.add(iso, concentration[-1])  # Use last time step concentration
             if not LibEndf81.is_missing_zaid(iso.zaid):

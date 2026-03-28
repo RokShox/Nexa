@@ -5,7 +5,10 @@ https://medium.com/@pouyahallaj/introduction-1616b3a4a637
 
 """
 
-from typing import Protocol, List, Self
+# Disbale name check on IConstituent while it is being defined
+from __future__ import annotations
+
+from typing import List, Optional, Protocol, Self, TextIO
 
 from nexa.globals.enum import CompositionMode
 
@@ -17,34 +20,48 @@ class IConstituent(Protocol):
     @property
     def name(self) -> str:
         """Constituent name"""
-        pass
+        ...
 
     @property
-    def level(self) -> int:
+    def level(self) -> Optional[int]:
         """Constituent level"""
-        pass
+        ...
 
     @property
-    def is_sealed(self) -> bool:
+    def sealed(self) -> bool:
         """Constituent sealed"""
-        pass
+        ...
+
+    def constituents(self) -> list[IConstituent]:
+        """Get list of constituents"""
+        ...
+
+    def fraction(self, name: str, mode: CompositionMode) -> float:
+        """Get fraction by name and mode"""
+        ...
 
     @property
     def a_value(self) -> float:
         """Constituent a value"""
-        pass
+        ...
 
     @property
     def mode(self) -> CompositionMode:
         """Composition mode"""
-        pass
+        ...
 
-    def copy(self, new_name: str = None) -> Self:
+    def copy(self, new_name: str = "") -> Self:
         """Deep copy the isotope."""
-        pass
+        ...
 
-    def table(self) -> List[List[str | float]]:
-        pass
+    def demote(self) -> Self:
+        """Demote the constituent to the next lower level."""
+        ...
 
-    def display(self, f) -> None:
-        pass
+    def promote(self) -> Self:
+        """Promote the constituent to the next higher level."""
+        ...
+
+    def table(self) -> List[List[str]]: ...
+
+    def display(self, file: Optional[TextIO] = None, to_string: bool = False) -> Optional[str]: ...

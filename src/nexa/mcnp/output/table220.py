@@ -1,8 +1,8 @@
 import re
 from dataclasses import dataclass, field
-from nexa.data import Isotopes
+from typing import Literal, Optional
+from nexa.data.isotopes import isotopes, zaid_to_symbol
 
-isos: Isotopes = Isotopes()
 
 @dataclass
 class SummaryNuclideData:
@@ -84,10 +84,10 @@ class Table220Parser:
         """
         self.summary_inventories.clear()
         self._header_found = False
-        self._current_step = None
-        self._current_inventory = None
-        self._inventory_type = None
-        self._total_volume = None
+        self._current_step: Optional[int] = None
+        self._current_inventory: Optional[SummaryInventory] = None
+        self._inventory_type: Optional[Literal['nonactinide', 'actinide']] = None
+        self._total_volume: Optional[float] = None
         
         # summary tables repeat the same steps over and over, so only keep one for each unique step   
 
@@ -177,11 +177,11 @@ class Table220Parser:
         """Check if line contains inventory header."""
         return ("actinide inventory" in line.lower() or "nonactinide inventory" in line.lower()) and "sum of materials" in line.lower()
     
-    def _parse_inventory_header(self, line: str) -> tuple[int, float, float, str] | None:
+    def _parse_inventory_header(self, line: str) -> tuple[int, float, float, Literal['nonactinide', 'actinide']] | None:
         """Parse inventory header to extract step, time, power, and type."""
         try:
             # Extract inventory type
-            inv_type = "nonactinide" if "nonactinide" in line.lower() else "actinide"
+            inv_type: Literal['nonactinide', 'actinide'] = "nonactinide" if "nonactinide" in line.lower() else "actinide"
             
             # Extract step
             step_match = re.search(r"step\s+(\d+)", line)
@@ -196,7 +196,7 @@ class Table220Parser:
             power_mw = float(power_match.group(1)) if power_match else None
             
             if all(x is not None for x in [step, time_days, power_mw]):
-                return step, time_days, power_mw, inv_type
+                return step, time_days, power_mw, inv_type # type: ignore
             
         except ValueError:
             raise ValueError(f"Error parsing inventory header line: {line}")
@@ -232,7 +232,7 @@ class Table220Parser:
                 return None
             
             return SummaryNuclideData(
-                symbol=isos.zaid_to_symbol(int(parts[1])),
+                symbol=zaid_to_symbol(int(parts[1])),
                 number=int(parts[0]),
                 zaid=int(parts[1]),
                 mass_gm=float(parts[2]),
@@ -278,7 +278,7 @@ class Table220Parser:
         """Get specific actinide nuclide data at a step."""
         inventory = self.get_inventory_at_step(step)
         if inventory:
-            for nuclide in inventory.actinide_nuclides:
+            for nuclide in inventory.actinide_nuclides.values():
                 if nuclide.zaid == zaid:
                     return nuclide
         return None
@@ -287,7 +287,7 @@ class Table220Parser:
         """Get specific non-actinide nuclide data at a step."""
         inventory = self.get_inventory_at_step(step)
         if inventory:
-            for nuclide in inventory.nonactinide_nuclides:
+            for nuclide in inventory.nonactinide_nuclides.values():
                 if nuclide.zaid == zaid:
                     return nuclide
         return None
@@ -313,7 +313,7 @@ class Table220Parser:
                             'atom_fraction': n.atom_fraction,
                             'mass_fraction': n.mass_fraction
                         }
-                        for n in inv.actinide_nuclides
+                        for n in inv.actinide_nuclides.values()
                     ],
                     'actinide_totals': {
                         'mass_gm': inv.actinide_totals.mass_gm,
@@ -335,7 +335,7 @@ class Table220Parser:
                             'atom_fraction': n.atom_fraction,
                             'mass_fraction': n.mass_fraction
                         }
-                        for n in inv.nonactinide_nuclides
+                        for n in inv.nonactinide_nuclides.values()
                     ],
                     'nonactinide_totals': {
                         'mass_gm': inv.nonactinide_totals.mass_gm,

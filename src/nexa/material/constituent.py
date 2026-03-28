@@ -1,16 +1,21 @@
-import re
+from __future__ import annotations
+
 import sys
 from copy import deepcopy
 from io import StringIO
-from typing import Self
+from typing import NamedTuple, Optional, Self, TextIO, cast
 
 # from ruamel.yaml import YAML
 from nexa.data.isotope import Isotope
 from nexa.globals import CompositionMode
 from nexa.interface import IConstituent
 
+CompositionEntry = NamedTuple(
+    "CompositionEntry", [("constituent", IConstituent), ("mass", float), ("atom", float)]
+)
 
-class Constituent:
+
+class Constituent(IConstituent):
     """Class to store constituent data.
 
     Level is inferred from the first added child.
@@ -33,9 +38,9 @@ class Constituent:
     # region dunders
     def __init__(self, name: str, mode: CompositionMode = CompositionMode.Atom):
         self._name: str = name
-        self._level: int = None
+        self._level: Optional[int] = None
         self._sealed: bool = False
-        self._composition: dict[str, list[Self, float, float]] = {}
+        self._composition: dict[str, CompositionEntry] = {}
         self._a_value: float = 0.0
         self._mode: CompositionMode = mode
 
@@ -75,7 +80,7 @@ class Constituent:
         self._name = name
 
     @property
-    def level(self) -> int:
+    def level(self) -> Optional[int]:
         """Constituent level"""
         return self._level
 
@@ -102,19 +107,33 @@ class Constituent:
     # region private methods
     def _calculate_other_fraction(self):
         """Calculate the other fractions"""
+        c: IConstituent
+        mass: float
+        atom: float
+
         if self.mode == CompositionMode.Atom:
-            for c in self._composition.values():
-                c[CompositionMode.Mass] = c[CompositionMode.Atom] * c[0].a_value / self.a_value
+            for key, item in self._composition.items():
+                c = item.constituent
+                atom = item.atom
+                mass = atom * c.a_value / self.a_value
+                self._composition[key] = item._replace(mass=mass)
         else:
-            for c in self._composition.values():
-                c[CompositionMode.Atom] = c[CompositionMode.Mass] * self.a_value / c[0].a_value
+            for key, item in self._composition.items():
+                c = item.constituent
+                mass = item.mass
+                atom = mass * self.a_value / c.a_value
+                self._composition[key] = item._replace(atom=atom)
 
     def _normalize(self, mode: CompositionMode):
         """Normalize the mode fractions"""
-
-        total = sum([c[mode] for c in self._composition.values()])
-        for c in self._composition.values():
-            c[mode] /= total
+        if mode == CompositionMode.Mass:
+            total = sum(item.mass for item in self._composition.values())
+            for key, item in self._composition.items():
+                self._composition[key] = item._replace(mass=item.mass / total)
+        elif mode == CompositionMode.Atom:
+            total = sum(item.atom for item in self._composition.values())
+            for key, item in self._composition.items():
+                self._composition[key] = item._replace(atom=item.atom / total)
 
     # endregion
 
@@ -132,11 +151,11 @@ class Constituent:
         # Calculate the a value
         if self.mode == CompositionMode.Atom:
             self._a_value = sum(
-                [c[0].a_value * c[CompositionMode.Atom] for c in self._composition.values()]
+                [item.constituent.a_value * item.atom for item in self._composition.values()]
             )
         else:
             self._a_value = 1.0 / sum(
-                [c[CompositionMode.Mass] / c[0].a_value for c in self._composition.values()]
+                [item.mass / item.constituent.a_value for item in self._composition.values()]
             )
 
         self._calculate_other_fraction()
@@ -148,27 +167,30 @@ class Constituent:
         if constituent.name in self._composition:
             raise RuntimeError(f"Constituent {constituent.name} already exists")
         if fraction <= 0.0:
-            raise ValueError(f"Fraction {fraction} must be between >0")
-        if self.level and constituent.level != self.level - 1:
-            # raise ValueError(
-            #     f"Constituent level {constituent.level} must be {self.level - 1}"
-            # )
-            if constituent.level > self.level - 1:
-                while constituent.level != self.level - 1:
-                    constituent = constituent.demote()
-                    # print(f"Demoting {constituent.name}")
-            elif constituent.level < self.level - 1:
-                while constituent.level != self.level - 1:
-                    constituent = constituent.promote()
-                    # print(f"Promoting {constituent.name}")
+            raise ValueError(f"Fraction {fraction} must be > 0")
+        if self.level is not None:
+            assert constituent.level is not None
+            if constituent.level != self.level - 1:
+                # raise ValueError(
+                #     f"Constituent level {constituent.level} must be {self.level - 1}"
+                # )
+                if constituent.level > self.level - 1:
+                    while constituent.level != self.level - 1:
+                        constituent = constituent.demote()
+                        # print(f"Demoting {constituent.name}")
+                elif constituent.level < self.level - 1:
+                    while constituent.level != self.level - 1:
+                        constituent = constituent.promote()
+                        # print(f"Promoting {constituent.name}")
 
-        if self.level is None:
+        else:
+            assert constituent.level is not None
             self._level = constituent.level + 1
 
         if self.mode == CompositionMode.Atom:
-            self._composition[constituent.name] = [constituent, 0.0, fraction]
+            self._composition[constituent.name] = CompositionEntry(constituent, 0.0, fraction)
         else:
-            self._composition[constituent.name] = [constituent, fraction, 0.0]
+            self._composition[constituent.name] = CompositionEntry(constituent, fraction, 0.0)
 
         return self
 
@@ -176,33 +198,38 @@ class Constituent:
         """Get mass fraction by name"""
         if name not in self._composition:
             raise ValueError(f"Constituent {name} not found")
-        return self._composition[name][CompositionMode.Mass]
+        return self._composition[name].mass
 
     def atom_fraction(self, name: str) -> float:
         """Get atom fraction by name"""
         if name not in self._composition:
             raise ValueError(f"Constituent {name} not found")
-        return self._composition[name][CompositionMode.Atom]
+        return self._composition[name].atom
 
     def fraction(self, name: str, mode: CompositionMode) -> float:
         """Get fraction by name and mode"""
         if name not in self._composition:
             raise ValueError(f"Constituent {name} not found")
-        return self._composition[name][mode]
+        if mode == CompositionMode.Mass:
+            return self._composition[name].mass
+        elif mode == CompositionMode.Atom:
+            return self._composition[name].atom
+        else:
+            raise ValueError(f"Invalid composition mode: {mode}")
 
     def constituents(self) -> list[IConstituent]:
         """Get list of constituents"""
-        return [value[0] for value in self._composition.values()]
+        return [item.constituent for item in self._composition.values()]
 
     def constituent(self, name: str) -> IConstituent:
         """Get constituent by name"""
         if name not in self._composition:
             raise ValueError(f"Constituent {name} not found")
-        return self._composition[name][0]
+        return self._composition[name].constituent
 
     def isotopes(self) -> dict[str, tuple[Isotope, float, float]]:
         """Get isotopes dictionary"""
-        con: IConstituent = self
+        con: Constituent = self
         if self.level != 1:
             con = self.flatten()
 
@@ -210,23 +237,23 @@ class Constituent:
         for iso in con.constituents():
             iso_frac_mass = con.mass_fraction(iso.name)
             iso_frac_atom = con.atom_fraction(iso.name)
-            isos[iso.name] = (iso.copy(), iso_frac_mass, iso_frac_atom)
+            isos[iso.name] = (cast(Isotope, iso.copy()), iso_frac_mass, iso_frac_atom)
 
         return isos
 
-    def copy(self, new_name: str = None) -> IConstituent:
+    def copy(self, new_name: str = "") -> Constituent:
         """Deep copy the constituent.
 
         The copy is temporarily unsealed to change the name if necessary.
         """
-        con: IConstituent = deepcopy(self)
+        con: Constituent = deepcopy(self)
         if new_name is not None:
             con._sealed = False
             con._name = new_name
             con.seal()
         return con
 
-    def promote(self) -> IConstituent:
+    def promote(self) -> Constituent:
         """Promote the constituent"""
         if not self.sealed:
             raise RuntimeError("Constituent must be sealed")
@@ -236,12 +263,14 @@ class Constituent:
         con.seal()
         return con
 
-    def demote(self) -> IConstituent:
+    def demote(self) -> Constituent:
         """Demote the constituent"""
         if not self.sealed:
             raise RuntimeError("Constituent must be sealed")
+
+        assert self.level is not None
         if self.level < 2:
-            raise RuntimeError("Constituent level must be greater than 1")
+            return self
 
         con_demoted: Constituent = Constituent(self.name, self.mode)
         isos = {}
@@ -278,20 +307,22 @@ class Constituent:
         con_demoted.seal()
         return con_demoted
 
-    def flatten(self) -> IConstituent:
+    def flatten(self) -> Constituent:
         if not self.sealed:
             raise RuntimeError("Constituent not sealed")
 
-        con_flattened: IConstituent = self
+        con_flattened: Constituent = self
+        assert con_flattened.level is not None
         while con_flattened.level > 1:
             con_flattened = con_flattened.demote()
+            assert con_flattened.level is not None
 
         return con_flattened
 
     # endregion
 
     # region view methods
-    def table(self) -> list[list[str | float]]:
+    def table(self) -> list[list[str]]:
         if not self.sealed:
             raise RuntimeError("Constituent not sealed")
 
@@ -301,7 +332,7 @@ class Constituent:
             tbl.append([])
             tbl[0] = []
             tbl[0].append(f"{self.name}")
-            tbl[0].append(self.a_value)
+            tbl[0].append(f"{self.a_value:.6e}")
             return tbl
 
         else:
@@ -310,6 +341,7 @@ class Constituent:
 
                 mfrac = self.mass_fraction(child.name)
                 afrac = self.atom_fraction(child.name)
+                assert self._level is not None
                 oav = self._level + 1
                 omf = oav + 1 + 2 * (self._level - 1)
                 oaf = omf + 1
@@ -317,39 +349,36 @@ class Constituent:
                 if self._level == 1:
                     for i in range(len(child_tbl)):
                         child_tbl[i].insert(0, "")
-                        child_tbl[i].append(mfrac)
-                        child_tbl[i].append(afrac)
+                        child_tbl[i].append(f"{mfrac:.6e}")
+                        child_tbl[i].append(f"{afrac:.6e}")
                         tbl.append(child_tbl[i])
 
                 else:
                     for i in range(len(child_tbl)):
                         child_tbl[i].insert(0, "")
-                        child_tbl[i].append(mfrac * child_tbl[i][omf - 2])
-                        child_tbl[i].append(afrac * child_tbl[i][oaf - 2])
+                        child_tbl[i].append(f"{mfrac * float(child_tbl[i][omf - 2]):.6e}")
+                        child_tbl[i].append(f"{afrac * float(child_tbl[i][oaf - 2]):.6e}")
                         tbl.append(child_tbl[i])
 
-            self_tbl = ["" for i in range(oaf + 1)]
+            self_tbl = ["" for i in range(oaf + 1)]  # type: ignore
             self_tbl[0] = f"{self.name}"
-            self_tbl[oav] = self.a_value
-            self_tbl[omf] = sum(
-                [self._composition[key][CompositionMode.Mass] for key in self._composition]
-            )
-            self_tbl[oaf] = sum(
-                [self._composition[key][CompositionMode.Atom] for key in self._composition]
-            )
+            self_tbl[oav] = f"{self.a_value:.6e}"  # type: ignore
+            self_tbl[omf] = f"{sum([self._composition[key].mass for key in self._composition]):.6e}"  # type: ignore
+            self_tbl[oaf] = f"{sum([self._composition[key].atom for key in self._composition]):.6e}"  # type: ignore
             tbl.append(self_tbl)
             return tbl
 
-    def display(self, f=None) -> str | None:
+    def display(self, file: Optional[TextIO] = None, to_string: bool = False) -> Optional[str]:
         tbl = self.table()
-
-        # Handle string output
-        return_string = False
-        if f == "":
-            f = StringIO()
-            return_string = True
-        elif f is None:
-            f = sys.stdout
+        # Shut up Pylance
+        assert self.level is not None
+        # Handle output destination
+        if to_string:
+            output_file = StringIO()
+        elif file is None:
+            output_file = sys.stdout
+        else:
+            output_file = file
 
         # Ugly hack
         min_sep = 3
@@ -358,72 +387,72 @@ class Constituent:
             max(max([len(row[self.level - i]) for row in tbl]), min_sym) + min_sep
             for i in range(self.level + 1)
         ]
-        eprec = 3
+        eprec = 6
         epad = eprec + 6 + min_sep
-        fprec = 4
+        fprec = 6
         fpad = fprec + 4 + min_sep
-        if return_string or f.name == "<stdout>":
+        if to_string or output_file.name == "<stdout>":
             # Header line 1
             # symbols
-            f.write(f"{'Constituent':<{sum(spad)}}")
+            output_file.write(f"{'Constituent':<{sum(spad)}}")
 
             # a value
-            f.write(f"{'Avg Mass':>{fpad}}")
+            output_file.write(f"{'Avg Mass':>{fpad}}")
 
             # fractions
             for i in range(self.level):
-                lev = f"Fraction in Level {i+1}"
-                f.write(f"{lev:>{2*epad}}")
-            f.write("\n")
+                lev = f"Fraction in Level {i + 1}"
+                output_file.write(f"{lev:>{2 * epad}}")
+            output_file.write("\n")
 
             # Header line 2
             # symbols
             for i in range(self.level, 0, -1):
                 lev = f"Level {i}"
-                f.write(f"{lev:<{spad[i]}}")
-            f.write(f"{'Isotope':<{spad[0]}}")
+                output_file.write(f"{lev:<{spad[i]}}")
+            output_file.write(f"{'Isotope':<{spad[0]}}")
 
             # a value
-            f.write(f"{'[amu/atom]':>{fpad}}")
+            output_file.write(f"{'[amu/atom]':>{fpad}}")
 
             # fractions
-            [f.write(f"{'Mass':>{epad}}{'Atom':>{epad}}") for i in range(self.level)]
-            f.write("\n")
+            [output_file.write(f"{'Mass':>{epad}}{'Atom':>{epad}}") for i in range(self.level)]
+            output_file.write("\n")
         else:
             # Header line 1
             # symbols
-            f.write("Constituent\t")
-            [f.write("\t") for i in range(self.level - 1, 0, -1)]
-            f.write("\t")
+            output_file.write("Constituent\t")
+            [output_file.write("\t") for i in range(self.level - 1, 0, -1)]
+            output_file.write("\t")
 
             # a value
-            f.write("Avg Mass\t")
+            output_file.write("Avg Mass\t")
 
             # fractions
-            [f.write(f"Fraction in Level {i+1}\t\t") for i in range(self.level)]
-            f.write("\n")
+            [output_file.write(f"Fraction in Level {i + 1}\t\t") for i in range(self.level)]
+            output_file.write("\n")
 
             # Header line 2
             # symbols
-            [f.write(f"Level {i}\t") for i in range(self.level, 0, -1)]
-            f.write("Isotope\t")
+            [output_file.write(f"Level {i}\t") for i in range(self.level, 0, -1)]
+            output_file.write("Isotope\t")
 
             # a value
-            f.write("[amu/atom]\t")
+            output_file.write("[amu/atom]\t")
 
             # fractions
-            [f.write("Mass\tAtom\t") for i in range(self.level)]
-            f.write("\n")
+            [output_file.write("Mass\tAtom\t") for i in range(self.level)]
+            output_file.write("\n")
 
         for row in tbl:
-            if return_string or f.name == "<stdout>":
+            if to_string or output_file.name == "<stdout>":
                 # symbols
-                f.write(
+                output_file.write(
                     "".join([f"{row[i]:<{spad[self.level - i]}}" for i in range(self.level + 1)])
                 )
 
                 # a value
-                f.write(
+                output_file.write(
                     "".join(
                         [
                             (f"{col:>{fpad}}" if type(col) is str else f"{col:>{fpad}.{fprec}f}")
@@ -433,7 +462,7 @@ class Constituent:
                 )
 
                 # fractions
-                f.write(
+                output_file.write(
                     "".join(
                         [
                             (f"{col:>{epad}}" if type(col) is str else f"{col:>{epad}.{eprec}e}")
@@ -441,14 +470,16 @@ class Constituent:
                         ]
                     )
                 )
-                f.write("\n")
+                output_file.write("\n")
             else:
-                f.write("\t".join([(f"{col}" if type(col) is str else f"{col:8e}") for col in row]))
-                f.write("\n")
-        f.write("\n")
+                output_file.write(
+                    "\t".join([(f"{col}" if type(col) is str else f"{col:6e}") for col in row])
+                )
+                output_file.write("\n")
+        output_file.write("\n")
 
-        if return_string:
-            return f.getvalue()
+        if to_string:
+            return cast(StringIO, output_file).getvalue()
 
     # endregion
 

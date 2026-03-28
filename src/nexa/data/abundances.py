@@ -1,89 +1,89 @@
-from pathlib import Path
+from collections import UserDict
+from importlib.resources import files
+from typing import Any
 
-from ruamel.yaml import YAML
+from ruamel.yaml import YAML  # type: ignore
 
+from nexa.data.isotopes import isotopes
 from nexa.globals import CompositionMode
 from nexa.material import Constituent
 
 
-class Abundances(dict):
-    """Class to store natural abundances.
+# Hide helper function
+def _normalize_key(key: str):
+    return key.strip().lower()
 
-    Implements a singleton pattern.
-    Imports Isotopes singleton so beware import loops.
-    Subclasses dict to represent a Dict[str, Constituent] where:
-        key: str - element symbol (normalized to lower case)
-        value: Constituent - Constituent instance with the isotopes and their abundances
+
+class _ReadOnlyAbundances(UserDict[str, Constituent]):
+    """Immutable class to store elemental abundances
+
+    Loaded at module level. Do not instantiate.
+
+    key: str - element symbol
+    value: Constituent - Constituent instance with the isotopes and their abundances
     """
 
-    _initialized: bool = False
+    def __init__(self, data: dict[str, Constituent]) -> None:
+        # Initialize without calling update, which is overridden to be read-only
+        self.data = dict(data)
 
-    def __new__(cls):
-        """Singleton pattern"""
-        if not hasattr(cls, "instance"):
-            # cls.instance = super(Abundances, cls).__new__(cls)
-            cls.instance = super().__new__(cls)
-        return cls.instance
-
-    def __init__(self):
-        """Initialize the Abundances.
-
-        For each element, create a level 1 Constituent instance with the isotopes and their
-        abundances.
-        Overrides dict methods that change values to prevent changes.
-        """
-        from nexa.data import Isotopes
-
-        if not self._initialized:
-            self._initialized = True
-            self._isos = Isotopes()
-            print("initializing Abundances")
-            p = Path(__file__).resolve().parent.parent / "resources" / "tblNatIso.yaml"
-            yaml = YAML()
-            raw_dict: dict[str, dict[str, float]] = yaml.load(p)
-
-            # Store instances
-            for elm_sym, iso_dict in raw_dict.items():
-                elm_sym = self.__normalize_key(elm_sym)
-                elm_con = Constituent(elm_sym, CompositionMode.Atom)
-
-                for iso_sym, afrac in iso_dict.items():
-                    # iso_sym = Isotopes._normalize_key(iso_sym)
-                    iso_con = self._isos[iso_sym]
-                    elm_con.add(iso_con, float(afrac))
-                elm_con.seal()
-
-                super().__setitem__(self.__normalize_key(elm_sym), elm_con)
-
+    # Override __getitem__ to normalize keys and provide better error messages
     def __getitem__(self, key: str) -> Constituent:
-        try:
-            return super().__getitem__(self.__normalize_key(key))
-        except KeyError:
-            return None
+        key = _normalize_key(key)
+        if key in self:
+            return super().__getitem__(key)
+        else:
+            raise KeyError(f"No elemental constituent found with symbol '{key}'")
 
-    # no setting
-    def __setitem__(self, key: str, value: Constituent):
-        raise RuntimeError("Setting not allowed")
+    # Override methods that would modify the dictionary to prevent changes
+    def __setitem__(self, key: Any, value: Any) -> None:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    # no deletion
-    def __delitem__(self):
-        raise RuntimeError("Deletion not allowed")
+    def __delitem__(self, key: Any) -> None:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    # no update
-    def update(self, d: dict):
-        raise RuntimeError("Update not allowed")
+    def update(self, other: Any = None, /, **kwargs: Any) -> None:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    # no pop
-    def pop(self, s=None):
-        raise RuntimeError("Deletion not allowed")
+    def pop(self, key: Any, default: Any = None) -> Any:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    # no popitem
-    def popitem(self, s=None):
-        raise RuntimeError("Deletion not allowed")
+    def popitem(self) -> tuple[Any, Any]:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    # no setdefault
-    def setdefault(self, key, value):
-        raise RuntimeError("Setting not allowed")
+    def clear(self) -> None:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
 
-    def __normalize_key(self, key: str):
-        return key.strip().lower()
+    def setdefault(self, key: Any, default: Any = None) -> Any:
+        raise TypeError(f"{self.__class__.__name__} is read-only")
+
+
+def _load_abundances() -> dict[str, Constituent]:
+    """Initialize the Abundances.
+
+    For each element, create a level 1 Constituent instance with the isotopes and their
+    abundances.
+    Overrides dict methods that change values to prevent changes.
+    """
+
+    print("initializing Abundances")
+    resource = files("nexa.resources") / "tblNatIso.yaml"
+    yaml = YAML()
+    raw_dict: dict[str, dict[str, float]] = yaml.load(resource)
+    d: dict[str, Constituent] = {}
+    # Store instances
+    for elm_sym, iso_dict in raw_dict.items():
+        elm_sym = _normalize_key(elm_sym)
+        elm_con = Constituent(elm_sym, CompositionMode.Atom)
+
+        for iso_sym, afrac in iso_dict.items():
+            iso_con = isotopes[iso_sym]
+            elm_con.add(iso_con, float(afrac))
+        elm_con.seal()
+        if elm_sym in d:
+            raise ValueError(f"Duplicate element symbol: {elm_sym}")
+        d[elm_sym] = elm_con
+    return d
+
+
+abundances: _ReadOnlyAbundances = _ReadOnlyAbundances(_load_abundances())

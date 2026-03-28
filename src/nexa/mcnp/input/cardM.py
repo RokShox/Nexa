@@ -1,6 +1,6 @@
 from typing import TextIO
 
-from nexa.data import Abundances, Elements, Isotope, Isotopes, LibEndf81
+from nexa.data import abundances, elements, Isotope, isotopes, LibEndf81
 from nexa.globals import CompositionMode
 from nexa.material import Constituent
 
@@ -141,7 +141,10 @@ class MaterialCard:
         lines.append(current_line)
 
         # Add isotopes
-        isos: dict[str, tuple[Isotope, float, float]] = self._constituent.isotopes()
+        if self._constituent:
+            isos: dict[str, tuple[Isotope, float, float]] = self._constituent.isotopes()
+        else:
+            raise ValueError("Material must have a constituent to generate isotopes")
 
         for iso_name, value in isos.items():
             iso = value[0]
@@ -185,16 +188,12 @@ class MaterialCard:
 # Example usage and test functions
 if __name__ == "__main__":
 
-    # abund: Abundances = Abundances()
-    # isos: Isotopes = Isotopes()
-    # elms: Elements = Elements()
-
     # tempK: float = 600.0
     # ext81: str = LibEndf81.ext_by_tempK(tempK)
 
     # # Example 1: Water with atomic fractions
-    # con_h: Constituent = abund["h"]
-    # con_o: Constituent = abund["o"]
+    # con_h: Constituent = abundances["h"]
+    # con_o: Constituent = abundances["o"]
     # con_water = Constituent("water", CompositionMode.Atom)
     # con_water.add(con_h, 2.0).add(con_o, 1.0).seal()
     # print(f"{con_water = }")
@@ -204,9 +203,9 @@ if __name__ == "__main__":
     # m_water.set_library("NLIB", ext81)
     # print(m_water.to_string())
 
-    # con_c: Constituent = abund["C"]
-    # con_h: Constituent = abund["H"]
-    # con_n: Constituent = abund["N"]
+    # con_c: Constituent = abundances["C"]
+    # con_h: Constituent = abundances["H"]
+    # con_n: Constituent = abundances["N"]
     # con_acryl: Constituent = Constituent("Acrylonitrile", CompositionMode.Atom)
     # con_acryl.add(con_c, 3.0 / 7.0).add(con_h, 3.0 / 7.0).add(con_n, 1.0 / 7.0).seal()
     # con_butad: Constituent = Constituent("Butadiene", CompositionMode.Atom)

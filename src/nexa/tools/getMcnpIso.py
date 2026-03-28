@@ -4,7 +4,8 @@ from pathlib import Path
 import argparse
 
 from nexa.globals import CompositionMode
-from nexa.data import Isotopes, Isotope, Elements, Abundances, LibEndf81
+from nexa.data import Isotope, elements, abundances, LibEndf81
+from nexa.data.isotopes import isotopes, iso_by_zaid, iso_by_szaid
 from nexa.material import Constituent
 from nexa.mcnp.output import MCNPOutputParser
 from nexa.mcnp.output.table210 import Table210Parser, NeutronicsData, MaterialBurnupData, NuclideInventoryData, InventoryTotals, MaterialInventory
@@ -13,10 +14,6 @@ from nexa.mcnp.input.cardM import MaterialCard
 
 def main():
    
-    abund: Abundances = Abundances()
-    isos: Isotopes = Isotopes()
-    elms: Elements = Elements()
-
     parser = argparse.ArgumentParser(prog="getMcnpIso", description="Parse Mcnp burn output files for isotope concentrations.")
     parser.add_argument("file", metavar="FILE", type=str, help="Path to the Mcnp output file to parse")
     args = parser.parse_args()
@@ -63,12 +60,13 @@ def main():
 
     parser = Table220Parser()
     inventories: list[SummaryInventory] = parser.parse_lines(lines)
-    
+    summary: SummaryInventory
+
     print(f"Found {len(inventories)} summary inventories:")
-    for inv in inventories:
-        print(f"  Step {inv.step}: Time {inv.time_days} [d] Power {inv.power_mw} [MW]  Total Volume {inv.total_volume_cm3:.4e} [cm3]")
-        actinides = inv.nuclides_by_type("actinide")
-        nonactinides = inv.nuclides_by_type("nonactinide")
+    for summary in inventories:
+        print(f"  Step {summary.step}: Time {summary.time_days} [d] Power {summary.power_mw} [MW]  Total Volume {summary.total_volume_cm3:.4e} [cm3]")
+        actinides = summary.nuclides_by_type("actinide")
+        nonactinides = summary.nuclides_by_type("nonactinide")
         if actinides:
             print(f"    U-233 total mass: {actinides['u-233'].mass_gm:.2e} [g]")
             print(f"    Pa-233 total mass: {actinides['pa-233'].mass_gm:.2e} [g]")
@@ -79,35 +77,35 @@ def main():
     print(f"\nAvailable steps: {parser.get_all_steps()}")
 
     step: int = len(inventories) - 1
-    inv: SummaryInventory = parser.get_inventory_at_step(step)
+    summary: SummaryInventory = parser.get_inventory_at_step(step)
 
-    if inv:
+    if summary:
         print(f"Found inventory for step {step}:")
-        print(f"  Actinide nuclides: {len(inv.actinide_nuclides)}")
-        print(f"  Non-actinide nuclides: {len(inv.nonactinide_nuclides)}")
+        print(f"  Actinide nuclides: {len(summary.actinide_nuclides)}")
+        print(f"  Non-actinide nuclides: {len(summary.nonactinide_nuclides)}")
     else:
         print(f"No inventory found for step {step}.")
 
     nper: int = 5
     actual_step: int = 10
     with open(f"{case_name}BurnAvg{actual_step:02d}.txt", 'w', encoding='utf-8') as o:
-        for i, nuclide in enumerate(inv.actinide_nuclides):
+        for i, nuclide in enumerate(summary.actinide_nuclides):
                 print(f"{nuclide.zaid}={nuclide.atom_density_a_b_cm:.6e}", end='\n' if (i + 1) % nper == 0 else ' ', file=o)
         print("", file=o)
-        for i, nuclide in enumerate(inv.nonactinide_nuclides):
+        for i, nuclide in enumerate(summary.nonactinide_nuclides):
                 print(f"{nuclide.zaid}={nuclide.atom_density_a_b_cm:.6e}", end='\n' if (i + 1) % nper == 0 else ' ', file=o)
         print("", file=o)
 
 
 
     # con: Constituent = Constituent(name=f"{case_name}BurnMat{step:02d}", mode=CompositionMode.Atom)
-    # for nuclide in inv.actinide_nuclides:
-    #     iso: Isotope = isos.iso_by_zaid(nuclide.zaid)
+    # for nuclide in summary.actinide_nuclides:
+    #     iso: Isotope = iso_by_zaid(nuclide.zaid)
     #     if iso:
     #         con.add(iso, nuclide.atom_density_a_b_cm)
 
-    # for nuclide in inv.nonactinide_nuclides:
-    #     iso: Isotope = isos.iso_by_zaid(nuclide.zaid)
+    # for nuclide in summary.nonactinide_nuclides:
+    #     iso: Isotope = iso_by_zaid(nuclide.zaid)
     #     if iso:
     #         con.add(iso, nuclide.atom_density_a_b_cm)
 
@@ -182,11 +180,11 @@ def main():
             inv: MaterialInventory = inv_list[-1]
             con_burn: Constituent = Constituent(name=f"{case_name}Mat{mat_id:03d}Burn", mode=CompositionMode.Atom)
             for nuclide in inv.actinide_nuclides:
-                iso: Isotope = isos.iso_by_zaid(nuclide.zaid)
+                iso: Isotope = iso_by_zaid(nuclide.zaid)
                 if not LibEndf81.is_missing_zaid(iso.zaid):
                     con_burn.add(iso, nuclide.atom_fraction)
             for nuclide in inv.nonactinide_nuclides:
-                iso: Isotope = isos.iso_by_zaid(nuclide.zaid)
+                iso: Isotope = iso_by_zaid(nuclide.zaid)
                 if not LibEndf81.is_missing_zaid(iso.zaid):
                     con_burn.add(iso, nuclide.atom_fraction)
             con_burn.seal()
