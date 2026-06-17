@@ -14,12 +14,8 @@ class Material:
 
     description: str = ""
     source: str = ""
-    _mass_density: Optional[float] = field(
-        default=None, init=False, repr=False, compare=False
-    )
-    _atom_density: Optional[float] = field(
-        default=None, init=False, repr=False, compare=False
-    )
+    _mass_density: Optional[float] = field(default=None, init=False, repr=False, compare=False)
+    _atom_density: Optional[float] = field(default=None, init=False, repr=False, compare=False)
 
     def __init__(
         self,
@@ -32,9 +28,7 @@ class Material:
         source: str = "",
     ) -> None:
         if (mass_density is None) == (atom_density is None):
-            raise ValueError(
-                "Exactly one of mass_density or atom_density must be provided"
-            )
+            raise ValueError("Exactly one of mass_density or atom_density must be provided")
 
         self.name = name
         self.composition = composition
@@ -170,9 +164,7 @@ class Material:
         con: Constituent = Constituent(name=name, mode=mode)
         for mat, mf in sorted_pairs:
             if mat.composition is None:
-                raise ValueError(
-                    f"Cannot mix material '{mat.name}' because composition is not set"
-                )
+                raise ValueError(f"Cannot mix material '{mat.name}' because composition is not set")
             con.add(mat.composition, mf)
         con.seal()
 
@@ -225,9 +217,7 @@ class Material:
         con: Constituent = Constituent(name=name, mode=mode)
         for mat, af in sorted_pairs:
             if mat.composition is None:
-                raise ValueError(
-                    f"Cannot mix material '{mat.name}' because composition is not set"
-                )
+                raise ValueError(f"Cannot mix material '{mat.name}' because composition is not set")
             con.add(mat.composition, af)
         con.seal()
 
@@ -235,6 +225,64 @@ class Material:
             name=name,
             composition=con,
             atom_density=atom_density,
+            description=description,
+            source=source,
+        )
+
+    @classmethod
+    def mix_mat_by_volume(
+        cls,
+        name: str,
+        mats: list["Material"],
+        volumes: list[float],
+        *,
+        mass_density: Optional[float] = None,
+        description: str = "",
+        source: str = "",
+    ) -> "Material":
+        """Mix a set of materials by volume fractions to produce a new material."""
+
+        if len(mats) != len(volumes):
+            raise ValueError("Number of materials and volumes must match")
+
+        total_volume = sum(volumes)
+        if total_volume == 0.0:
+            raise ValueError("Total volume of mixture is zero")
+
+        # compute volume fractions
+        volume_fracs = [v / total_volume for v in volumes]
+
+        # compute mass fractions
+        mass_fracs: list[float] = []
+        for m, vf in zip(mats, volume_fracs):
+            den: float = cls._required_mass_density(m)
+            mass_fracs.append(vf * den)
+        nominal_mass_density = sum(mass_fracs)
+        mass_fracs = [mf / nominal_mass_density for mf in mass_fracs]
+
+        # override nominal mass density if mass density is provided
+        mass_density = nominal_mass_density if mass_density is None else mass_density
+
+        # Sort materials by composition level in descending order so that lower level constituents are promoted to higher levels in the resulting composition
+        sorted_pairs = sorted(
+            zip(mats, mass_fracs),
+            key=lambda x: cls._composition_level(x[0]),
+            reverse=True,
+        )
+
+        # Create composition
+        mode = CompositionMode.Mass
+        con: Constituent = Constituent(name=name, mode=mode)
+        for mat, mf in sorted_pairs:
+            if mat.composition is None:
+                raise ValueError(f"Cannot mix material '{mat.name}' because composition is not set")
+            con.add(mat.composition, mf)
+        con.seal()
+
+        return cls.create(
+            name=name,
+            composition=con,
+            mass_density=mass_density,
             description=description,
             source=source,
         )
