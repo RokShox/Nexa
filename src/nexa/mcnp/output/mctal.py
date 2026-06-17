@@ -2,11 +2,17 @@ import re
 import sys
 from dataclasses import dataclass, field
 from enum import Enum
+
 # Still need typing for Self
-from typing import Self
+from typing import Optional, Self, cast
 
 from nexa.mcnp.data import McnpParticleType, McnpParticleTypes, McnpTallyBinEnum
 from nexa.util import MultiDimIterator
+
+type BinTuple = tuple[
+    McnpTallyBinEnum, int, str, list[int | float]
+]  # (bin type, bin count, bin qual, bin data)
+type TallyBin = tuple[int, int, int, int, int, int, int, int]  # (f, d, u, s, m, c, e, t)
 
 
 class LookFor(Enum):
@@ -77,13 +83,13 @@ class MctalTally:
     detector_type: DetectorType = DetectorType.NONE
     modifier_type: TallyModifierType = TallyModifierType.NONE
     # tuple is (McnpTallyBinEnum, bin count, bin qual, bin data)
-    bin: dict[str, tuple[Enum, int, str, list[int | float]]] = field(default_factory=dict)
+    bin: dict[str, BinTuple] = field(default_factory=dict)
     fc_data: list[str] = field(default_factory=list)
     # tuple is (value, uncertainty)
     vals_data: list[tuple[float, float]] = field(default_factory=list)
     # tuple is (nps, mean, error, fom)
     tfc_data: list[tuple[int, float, float, float]] = field(default_factory=list)
-    tfc_bin: tuple[int, int, int, int, int, int, int, int] = field(default_factory=tuple)
+    tfc_bin: TallyBin = field(default_factory=lambda: (0, 0, 0, 0, 0, 0, 0, 0))
 
     def total_vals(self) -> int:
         """Calculate total number of bins across all bin types."""
@@ -92,7 +98,7 @@ class MctalTally:
             total *= bin_tuple[1] if bin_tuple[1] > 0 else 1
         return total
 
-    def value(self, indices: tuple[int, int, int, int, int, int, int, int]) -> tuple[float, float]:
+    def value(self, indices: TallyBin) -> tuple[float, float]:
         """Get value and uncertainty for given bin indices.
 
         indices: List of indices corresponding to each bin type in order of bin dict
@@ -176,13 +182,26 @@ class MctalParser:
     """Parser for MCNP MCTAL output files."""
 
     def __init__(self):
-        self._current_tally: MctalTally = None
+        self._current_tally: Optional[MctalTally] = None
 
     def parse_lines(self, lines: list[str]) -> MctalOverview:
         """Parse MCNP MCTAL file"""
 
         lf: LookFor = LookFor.HEAD
         lfHead: LookFor = LookFor.HEAD_HEADER
+        lfTally: LookFor = LookFor.TALLY_HEAD
+        ntal: int = 0  # Initialize to suppress possibly unbound warnings
+        expected: int = 0
+        bin_type: McnpTallyBinEnum = (
+            McnpTallyBinEnum.F
+        )  # Initialize to suppress possibly unbound warnings
+        bin_key: str = ""
+        bin_tuple: BinTuple = (
+            McnpTallyBinEnum.F,
+            0,
+            "",
+            [],
+        )  # Initialize to suppress possibly unbound warnings
 
         for line in lines:
             # don't strip line since leading spaces are important
@@ -216,10 +235,10 @@ class MctalParser:
                     # npert not handled yet
                     if len(parts) == 2:
                         ntal = int(parts[1])
-                        npert = 0
+                        # npert = 0
                     elif len(parts) == 4:
                         ntal = int(parts[1])
-                        npert = int(parts[3])
+                        # npert = int(parts[3])
                     else:
                         raise RuntimeError("Invalid MCTAL NTAL line")
                     lfHead = LookFor.HEAD_TALLY
@@ -294,6 +313,7 @@ class MctalParser:
                     else:
                         raise RuntimeError("Invalid MCTAL tally particle line")
 
+                    assert self._current_tally is not None
                     self._current_tally.particles = particles
                     lfTally = LookFor.TALLY_FC
                     continue
@@ -302,6 +322,7 @@ class MctalParser:
                     # ex: "     current by zone"
                     if line.startswith("     "):
                         # Process FC line
+                        assert self._current_tally is not None
                         self._current_tally.fc_data.append(line.strip())
                         continue
                     else:
@@ -311,6 +332,7 @@ class MctalParser:
                 if lfTally == LookFor.TALLY_BIN:
                     # ex: "f        7"
                     # Process bin lines
+                    assert self._current_tally is not None
                     bin_match = re.match(r"([fdusmcet])([tu\s])\s+(\d+)", line)
                     if bin_match:
                         bin_key = bin_match.group(1).upper()
@@ -348,6 +370,7 @@ class MctalParser:
                     values_read = len(bin_tuple[3])
                     if values_read == expected:
                         # Finished reading bin data
+                        assert self._current_tally is not None
                         self._current_tally.bin[bin_key] = bin_tuple
                         if bin_type == McnpTallyBinEnum.T:
                             expected = self._current_tally.total_vals()
@@ -360,6 +383,7 @@ class MctalParser:
 
                 if lfTally == LookFor.TALLY_VALS:
                     # ex: "vals"
+                    assert self._current_tally is not None
                     if len(self._current_tally.vals_data) == 0 and line.startswith("vals"):
                         continue
                     # ex: "  3.00000E+09 0.5774  9.70000E+10 0.1015  1.34000E+11 0.0877  1.93000E+11 0.0724"
@@ -382,13 +406,16 @@ class MctalParser:
 
                 if lfTally == LookFor.TALLY_TFC:
                     # ex: "tfc   10       1       1       1       1       1       2     253       1"
+                    ntfc: int = 0
+                    itfc: int = 0
+                    assert self._current_tally is not None
                     if line.startswith("tfc"):
                         parts = line.strip().split()
                         if len(parts) == 10 and parts[0] == "tfc":
                             ntfc = int(parts[1])
                             itfc = 0
                             # store tfc bin 0-based
-                            self._current_tally.tfc_bin = tuple(int(part) - 1 for part in parts[2:])
+                            self._current_tally.tfc_bin = tuple(int(part) - 1 for part in parts[2:])  # type: ignore
                         else:
                             raise RuntimeError("Invalid TFC header line in MCTAL tally")
                     # ex: "       10000000  3.91204E+15  2.50865E-02  4.43250E+01"
@@ -406,7 +433,7 @@ class MctalParser:
                                         float(parts[2]),
                                         float(parts[3]),
                                     ]
-                                )
+                                )  # type: ignore
                             )
                             itfc += 1
                         if itfc == ntfc:
@@ -429,7 +456,6 @@ class MctalParser:
 
 
 if __name__ == "__main__":
-
     for file in sys.argv[1:]:
         try:
             with open(file, "r", encoding="utf-8") as f:
@@ -466,7 +492,15 @@ if __name__ == "__main__":
             for c in range(it.sizes["C"]):
                 for f in range(it.sizes["F"]):
                     coord = next(iter_gen)
-                    print(f"{tal.value(coord)[0]:10.6e} {tal.value(coord)[1]:.4f} ", end="")
+                    if isinstance(coord, dict):
+                        indices = tuple(coord.values())
+                    elif isinstance(coord, tuple):
+                        indices = tuple(int(x) for x in coord)
+                    else:
+                        raise TypeError("coord must be a dict or tuple")
+                    indices = cast(TallyBin, indices)
+
+                    print(f"{tal.value(indices)[0]:10.6e} {tal.value(indices)[1]:.4f} ", end="")
                 print()
 
     # print(DetectorType.parse(0))

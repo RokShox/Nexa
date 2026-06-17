@@ -1,8 +1,6 @@
 from typing import TextIO
 
-from nexa.data import abundances, elements, Isotope, isotopes, LibEndf81
-from nexa.globals import CompositionMode
-from nexa.material import Constituent
+from nexa.data import Constituent, Isotope
 
 
 class MaterialCard:
@@ -31,6 +29,7 @@ class MaterialCard:
 
         # Track fraction type to ensure consistency
         self._fraction_type: str | None = None  # 'atomic' or 'weight'
+
     def constituent(self, con: Constituent) -> None:
         """
         Set the material constituent.
@@ -187,7 +186,6 @@ class MaterialCard:
 
 # Example usage and test functions
 if __name__ == "__main__":
-
     # tempK: float = 600.0
     # ext81: str = LibEndf81.ext_by_tempK(tempK)
 

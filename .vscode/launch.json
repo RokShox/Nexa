@@ -35,7 +35,6 @@
                 "PYTHONPATH": "${workspaceFolder}/src:${env:PYTHONPATH}"
             },
             "console": "integratedTerminal",
-            "args": ["chb04umo"],
         },
     ]
 }

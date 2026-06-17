@@ -15,10 +15,10 @@ class LibEndf80:
     raw_dict: dict[str, tuple[float, float]] = yaml.load(p)
     # Store sabids
     for key, entry in raw_dict.items():
-        val = tuple(entry)
+        val: tuple[float, float] = tuple(entry)  # type: ignore
         _endf80_sabid[key.strip().lower()] = val
 
-    _endf80_ext: dict[str, float] = {
+    _endf80_ext_unsorted: dict[str, float] = {
         "00c": 293.6,
         "01c": 600.0,
         "02c": 900.0,
@@ -27,7 +27,7 @@ class LibEndf80:
         "05c": 0.1,
         "06c": 250.0,
     }
-    _endf80_ext = sorted(((ext, temp) for ext, temp in _endf80_ext.items()), key=lambda x: x[1])
+    _endf80_ext = dict(sorted(_endf80_ext_unsorted.items(), key=lambda x: x[1]))
 
     _missing_zaid = [
         12023,
@@ -78,21 +78,21 @@ class LibEndf80:
         89228,
     ]
 
-# probably ok
-#        61548, # breaks Origen
-#        52527, # breaks Origen
-#        52529, # breaks Origen
-#
+    # probably ok
+    #        61548, # breaks Origen
+    #        52527, # breaks Origen
+    #        52529, # breaks Origen
+    #
 
     def __new__(cls, *args, **kwargs):
         raise TypeError(f"{cls.__name__} cannot be instantiated")
 
     @classmethod
-    def ext_by_tempK(cls, tempK: float) -> float:
+    def ext_by_tempK(cls, tempK: float) -> str:
         """Get ENDF/B-VIII.1 thermal extension factor by temperature in K."""
 
-        prev_ext = cls._endf80_ext[0][0]
-        for ext, temp in cls._endf80_ext:
+        prev_ext = next(iter(cls._endf80_ext.keys()))
+        for ext, temp in cls._endf80_ext.items():
             if tempK == temp:
                 return ext
             elif temp > tempK:
@@ -101,7 +101,7 @@ class LibEndf80:
         return prev_ext
 
     @classmethod
-    def ext_by_tempC(cls, tempC: float) -> float:
+    def ext_by_tempC(cls, tempC: float) -> str:
         """Get ENDF/B-VIII.1 thermal extension factor by temperature in C."""
 
         tempK = tempC + 273.15
@@ -159,6 +159,7 @@ class LibEndf80:
         """Check if ZAID is missing from ENDF/B-VIII.1."""
 
         return zaid in cls._missing_zaid
+
 
 if __name__ == "__main__":
     print(LibEndf80.sabid_by_tempMeV("h-h2o", 2.53e-08))

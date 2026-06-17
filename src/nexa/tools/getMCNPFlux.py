@@ -1,27 +1,41 @@
-import sys
-import os
 import argparse
 import re
+import sys
 from pathlib import Path
-from nexa.mcnp.output import MctalParser, MctalOverview
+
+from nexa.mcnp.output import MctalOverview, MctalParser
 
 
 def main():
     """Parse MCNP MCTAL files provided as command-line arguments and print summary information.
-    
+
     mctal file name should match <series><ii>b<dd>d[0|1]m
         where <series> is the case series, <ii> is case index<dd> is the two-digit burn step,
         'b' indicates burnup, d indicates depletion step type 0=predictor 1=corrector
-    
+
     Usage:        python getMCNPFlux.py <MCTAL_FILE> [--tally TALLY_NUM] [--origen]
     Example:      python getMCNPFlux.py example.mctal -t 4 --origen
     """
 
-    parser = argparse.ArgumentParser(prog="getMCNPFlux", description="Parse MCNP MCTAL file and extract flux for Ampera analysis.")
+    parser = argparse.ArgumentParser(
+        prog="getMCNPFlux",
+        description="Parse MCNP MCTAL file and extract flux for Ampera analysis.",
+    )
     # parser.add_argument("file", metavar="FILE", type=str, nargs="+", help="Path to the MCTAL file to parse")
-    parser.add_argument("file", metavar="MCTAL_FILE", type=str, help="Path to the MCTAL file to parse")
-    parser.add_argument("--tally", "-t", metavar="TALLY_NUM", type=int, default=4, help="Tally number to extract flux from (default: 4)")
-    parser.add_argument("--origen", action="store_true", help="Output groups from high to low energy for ORIGEN")
+    parser.add_argument(
+        "file", metavar="MCTAL_FILE", type=str, help="Path to the MCTAL file to parse"
+    )
+    parser.add_argument(
+        "--tally",
+        "-t",
+        metavar="TALLY_NUM",
+        type=int,
+        default=4,
+        help="Tally number to extract flux from (default: 4)",
+    )
+    parser.add_argument(
+        "--origen", action="store_true", help="Output groups from high to low energy for ORIGEN"
+    )
     args = parser.parse_args()
 
     try:
@@ -37,7 +51,7 @@ def main():
 
     parser = MctalParser()
     mctal: MctalOverview = parser.parse_lines(lines)
-    mctal.case = Path(args.file).stem[:-1] # remove trailing m
+    mctal.case = Path(args.file).stem[:-1]  # remove trailing m
     print(mctal)
     for tal_num in mctal.tally_nums:
         tal = mctal.tallies.get(tal_num, None)
@@ -65,7 +79,9 @@ def main():
 
         # Output for ORIGEN
         # Only two-letter series names are supported here
-        reCase: re = re.compile(r'^(?P<series>\w{2})(?P<calc>[ksv])(?P<index>\d{2})b(?P<step>\d{2})d(?P<depl>\d)$')
+        reCase = re.compile(
+            r"^(?P<series>\w{2})(?P<calc>[ksv])(?P<index>\d{2})b(?P<step>\d{2})d(?P<depl>\d)$"
+        )
         match = reCase.match(mctal.case)
         if match:
             case_series: str = f"{match.group('series')}"
@@ -84,13 +100,19 @@ def main():
             iter_gen = it.iter_coords(free, fixed, format="tuple")
 
             for f in range(it.sizes["F"]):
-                case_name = f"{case_series}{case_calc}{case_index:02d}b{case_step:02d}d{case_depl}z{f+1:02d}Flux"
-                with open(f"{case_name}", 'w', encoding='utf-8') as o:
+                case_name = f"{case_series}{case_calc}{case_index:02d}b{case_step:02d}d{case_depl}z{f + 1:02d}Flux"
+                with open(f"{case_name}", "w", encoding="utf-8") as o:
                     flux = []
                     # open output file
                     for e in range(it.sizes["E"]):
                         coord = next(iter_gen)
-                        flux.append(tal.value(coord)[0])  # get flux value
+                        if isinstance(coord, dict):
+                            indices = tuple(coord.values())
+                        elif isinstance(coord, tuple):
+                            indices = tuple(int(x) for x in coord)
+                        else:
+                            raise TypeError("coord must be a dict or tuple")
+                        flux.append(tal.value(indices)[0])  # type: ignore
                     line = "    "
                     for bin, val in enumerate(reversed(flux)):
                         if bin == 0:
@@ -101,4 +123,3 @@ def main():
                             if bin % nper == 0 or bin == len(flux) - 1:
                                 print(line.rstrip(), file=o)
                                 line = "    "
-

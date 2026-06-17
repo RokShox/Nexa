@@ -29,7 +29,7 @@ keywords = [
     "activation",
 ]
 license = { file = "LICENSE.txt" }
-requires-python = ">=3.9.2"
+requires-python = ">=3.12"
 readme = "README.md"
 authors = [{ name = "Charles Henkel", email = "csh@henktech.com" }]
 dependencies = [
@@ -58,3 +58,4 @@ getOrigenIso = "nexa.tools.getOrigenIso:main"
 
 [tool.ruff]
 line-length = 100
+per-file-ignores = { "**/__init__.py" = ["F401"] }

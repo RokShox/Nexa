@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ruamel.yaml import YAML # type: ignore
+from ruamel.yaml import YAML  # type: ignore
 
 
 class LibEndf81:
@@ -17,7 +17,7 @@ class LibEndf81:
     for key, entry in raw_dict.items():
         _endf81_sabid[key.strip().lower()] = entry
 
-    _endf81_ext: dict[str, float] = {
+    _endf81_ext_unsorted: dict[str, float] = {
         "15c": 0.10,
         "16c": 233.15,
         "17c": 273.15,
@@ -27,8 +27,7 @@ class LibEndf81:
         "13c": 1200.00,
         "14c": 2500.00,
     }
-    _endf81_ext = dict(sorted(((ext, temp) for ext, temp in _endf81_ext.items()), key=lambda x: x[1]))
-
+    _endf81_ext = dict(sorted(_endf81_ext_unsorted.items(), key=lambda x: x[1]))
     _missing_zaid = [
         12023,
         17034,

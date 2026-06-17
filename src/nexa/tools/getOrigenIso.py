@@ -1,15 +1,12 @@
-import os
+import argparse
 import re
 import sys
-import code
 from pathlib import Path
-import argparse
 from typing import Optional
 
+from nexa.data import Constituent, Isotope, LibEndf81, isotopes
 from nexa.globals import CompositionMode
-from nexa.data import abundances, elements, Isotope, isotopes, LibEndf80, LibEndf81
-from nexa.material import Constituent
-from nexa.scale.data import ScaleZaid
+from nexa.mcnp.input.cardM import MaterialCard
 from nexa.scale.origen.origen_parser import (
     CaseOverview,
     NuclideConcentrationTable,
@@ -18,22 +15,29 @@ from nexa.scale.origen.origen_parser import (
     OrigenConcentrationUnits,
     OrigenParser,
 )
-from nexa.mcnp.input.cardM import MaterialCard
 
 
 def main():
     """Parse Origen outputs for current burn step"""
 
-    parser = argparse.ArgumentParser(prog="getOrigenIso", description="Parse Origen output files for isotope concentrations.")
-    parser.add_argument("file", metavar="FILE", type=str, help="Path to the Origen output file to parse")
-    parser.add_argument("--tempC", type=float, help="Burn material temperature in deg C", default=600.0)
+    parser = argparse.ArgumentParser(
+        prog="getOrigenIso", description="Parse Origen output files for isotope concentrations."
+    )
+    parser.add_argument(
+        "file", metavar="FILE", type=str, help="Path to the Origen output file to parse"
+    )
+    parser.add_argument(
+        "--tempC", type=float, help="Burn material temperature in deg C", default=600.0
+    )
     args = parser.parse_args()
 
     out_name = args.file
     case_name = Path(out_name).stem
-    
+
     # Only two-letter series names are supported here
-    reCase = re.compile(r'^(?P<series>\w{2})(?P<calc>[ksv])(?P<index>\d{2})b(?P<step>\d{2})d(?P<depl>\d)z(?P<zone>\d{2})$')
+    reCase = re.compile(
+        r"^(?P<series>\w{2})(?P<calc>[ksv])(?P<index>\d{2})b(?P<step>\d{2})d(?P<depl>\d)z(?P<zone>\d{2})$"
+    )
     match = reCase.match(case_name)
     if match:
         case_series: str = f"{match.group('series')}"
@@ -59,20 +63,24 @@ def main():
         sys.exit(1)
 
     parser = OrigenParser()
-    cases = parser.parse_lines(lines) # List[CaseOverview]
+    cases = parser.parse_lines(lines)  # List[CaseOverview]
 
     # First case is irradiation
     case: CaseOverview = cases[0]
-    conc_data: Optional[OrigenConcentrationData] = case.concentration_data_by_units(OrigenConcentrationUnits.ATOMS_PER_BARN_CM)
+    conc_data: Optional[OrigenConcentrationData] = case.concentration_data_by_units(
+        OrigenConcentrationUnits.ATOMS_PER_BARN_CM
+    )
     if conc_data is None:
-        raise ValueError(f"No concentration data found for ATOMS_PER_BARN_CM in case: {case.case_id}")
+        raise ValueError(
+            f"No concentration data found for ATOMS_PER_BARN_CM in case: {case.case_id}"
+        )
 
     nuclide_table: Optional[NuclideConcentrationTable] = conc_data.nuclide_table(NuclideType.TOTAL)
     if nuclide_table is None:
         raise ValueError(f"No nuclide table found for TOTAL in case: {case.case_id}")
-    concentrations = nuclide_table.concentrations # Dict[str, List[float]]
- 
-    # Need separate Constituent instances for Origen iso file and MCNP material card  
+    concentrations = nuclide_table.concentrations  # Dict[str, List[float]]
+
+    # Need separate Constituent instances for Origen iso file and MCNP material card
     con_origen: Constituent = Constituent(f"{case_name}Iso", CompositionMode.Atom)
     con_mcnp: Constituent = Constituent(f"{case_name}BurnMat", CompositionMode.Atom)
     for isotope, concentration in concentrations.items():
@@ -91,7 +99,7 @@ def main():
     atom_den: float = nuclide_table.totals[-1]
     mass_den: float = atom_den * con_origen.a_value / avogadro
     # No need to print isos from a predictor case in Origen format
-    # These isos will be used in the following predictor step 
+    # These isos will be used in the following predictor step
     if case_depl == 1:
         origen_iso_name = f"{case_series}{case_calc}{case_index:02d}b{next_step:02d}d{next_depl}z{case_zone:02d}Isos"
         with open(f"{origen_iso_name}", "w", encoding="utf-8") as o:
@@ -100,24 +108,25 @@ def main():
             nper = 4
             line = "    "
             for i, (iso, mass_frac, atom_frac) in enumerate(con_isos.values()):
-                line += f"{iso.szaid:>7}={atom_frac*atom_den:.6e} "
-                if (i+1) % nper == 0 or i == len(con_isos)-1:
+                line += f"{iso.szaid:>7}={atom_frac * atom_den:.6e} "
+                if (i + 1) % nper == 0 or i == len(con_isos) - 1:
                     print(line.rstrip(), file=o)
                     line = "    "
-    
+
     # Write MCNP material cards for each burn zone all to one file
     # Note the first zone must be processed first to create the file (ugly)
     mcnp_iso_name = f"{case_series}{case_calc}{case_index:02d}b{next_step:02d}d{next_depl}BurnMat"
     print(f"Writing MCNP material card to {mcnp_iso_name}")
     with open(f"{mcnp_iso_name}", "a" if case_zone > 1 else "w", encoding="utf-8") as o:
         ext81: str = LibEndf81.ext_by_tempC(args.tempC)
-        m = MaterialCard(100+case_zone, con_mcnp)
+        m = MaterialCard(100 + case_zone, con_mcnp)
         m.set_library("NLIB", ext81)
         print(f"c    Zone {case_zone:d} MassDen {mass_den:10.6e} AtomDen {atom_den:10.6e}", file=o)
         print(m.to_string(), file=o)
 
     # """Run repl loop."""
     # code.interact(local=locals())
+
 
 if __name__ == "__main__":
     main()

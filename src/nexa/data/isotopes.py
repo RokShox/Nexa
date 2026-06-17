@@ -24,6 +24,7 @@ class _ReadOnlyIsotopes(UserDict[str, Isotope]):
     """
 
     def __init__(self, data: dict[str, Isotope]) -> None:
+        super().__init__()
         # Initialize without calling update, which is overridden to be read-only
         self.data = dict(data)
 
@@ -35,6 +36,11 @@ class _ReadOnlyIsotopes(UserDict[str, Isotope]):
             return super().__getitem__(key)
         else:
             raise KeyError(f"No isotope found with symbol '{key}'")
+
+    def __contains__(self, key: object) -> bool:
+        if isinstance(key, str):
+            key = _normalize_key(key)
+        return super().__contains__(key)
 
     # Override methods that would modify the dictionary to prevent changes
     def __setitem__(self, key: Any, value: Any) -> None:

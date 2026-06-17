@@ -1,3 +1,3 @@
-from .constituent import Constituent
+from .material import Material
 
-__all__ = ["Constituent"]
+__all__ = ["Material"]

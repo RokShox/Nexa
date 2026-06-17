@@ -4,9 +4,9 @@ from typing import Any
 
 from ruamel.yaml import YAML  # type: ignore
 
+from nexa.data.constituent import Constituent
 from nexa.data.isotopes import isotopes
 from nexa.globals import CompositionMode
-from nexa.material import Constituent
 
 
 # Hide helper function
@@ -34,6 +34,11 @@ class _ReadOnlyAbundances(UserDict[str, Constituent]):
             return super().__getitem__(key)
         else:
             raise KeyError(f"No elemental constituent found with symbol '{key}'")
+
+    def __contains__(self, key: object) -> bool:
+        if isinstance(key, str):
+            key = _normalize_key(key)
+        return super().__contains__(key)
 
     # Override methods that would modify the dictionary to prevent changes
     def __setitem__(self, key: Any, value: Any) -> None:
@@ -65,7 +70,6 @@ def _load_abundances() -> dict[str, Constituent]:
     abundances.
     Overrides dict methods that change values to prevent changes.
     """
-
     print("initializing Abundances")
     resource = files("nexa.resources") / "tblNatIso.yaml"
     yaml = YAML()
@@ -87,3 +91,7 @@ def _load_abundances() -> dict[str, Constituent]:
 
 
 abundances: _ReadOnlyAbundances = _ReadOnlyAbundances(_load_abundances())
+
+if __name__ == "__main__":
+    for elm_sym, con in abundances.items():
+        print(f"{elm_sym}:\n{con.display(to_string=True)}")

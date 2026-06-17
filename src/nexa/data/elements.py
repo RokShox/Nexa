@@ -32,6 +32,11 @@ class _ReadOnlyElements(UserDict[str, Element]):
         else:
             raise KeyError(f"No elemental constituent found with symbol '{key}'")
 
+    def __contains__(self, key: object) -> bool:
+        if isinstance(key, str):
+            key = _normalize_key(key)
+        return super().__contains__(key)
+
     # Override methods that would modify the dictionary to prevent changes
     def __setitem__(self, key: Any, value: Any) -> None:
         raise TypeError(f"{self.__class__.__name__} is read-only")

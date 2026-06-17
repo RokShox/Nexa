@@ -11,7 +11,8 @@ from nexa.globals import CompositionMode
 from nexa.interface import IConstituent
 
 CompositionEntry = NamedTuple(
-    "CompositionEntry", [("constituent", IConstituent), ("mass", float), ("atom", float)]
+    "CompositionEntry",
+    [("constituent", IConstituent), ("mass", float), ("atom", float)],
 )
 
 
@@ -34,6 +35,9 @@ class Constituent(IConstituent):
     https://refactoring.guru/design-patterns/observer/python/example
 
     """
+
+    # Exact value, see https://physics.nist.gov/cgi-bin/cuu/Value?na
+    avogadro: float = 6.02214076e-01
 
     # region dunders
     def __init__(self, name: str, mode: CompositionMode = CompositionMode.Atom):
@@ -160,14 +164,20 @@ class Constituent(IConstituent):
 
         self._calculate_other_fraction()
 
+    def unseal(self) -> None:
+        """Unseal the constituent"""
+        if not self.sealed:
+            raise RuntimeError("Constituent not sealed")
+        self._sealed = False
+
     def add(self, constituent: IConstituent, fraction: float) -> Self:
         """Add a constituent"""
         if self.sealed:
             raise RuntimeError("Constituent sealed")
         if constituent.name in self._composition:
             raise RuntimeError(f"Constituent {constituent.name} already exists")
-        if fraction <= 0.0:
-            raise ValueError(f"Fraction {fraction} must be > 0")
+        if fraction < 0.0:
+            raise ValueError(f"Fraction {fraction} must be >= 0")
         if self.level is not None:
             assert constituent.level is not None
             if constituent.level != self.level - 1:
@@ -247,8 +257,8 @@ class Constituent(IConstituent):
         The copy is temporarily unsealed to change the name if necessary.
         """
         con: Constituent = deepcopy(self)
-        if new_name is not None:
-            con._sealed = False
+        if new_name:
+            con.unseal()
             con._name = new_name
             con.seal()
         return con
@@ -319,6 +329,28 @@ class Constituent(IConstituent):
 
         return con_flattened
 
+    def den_from_aden(self, aden: float) -> float:
+        """Calculate density from atom density"""
+        if not self.sealed:
+            raise RuntimeError("Constituent not sealed")
+        assert self.level is not None
+        if self.level < 1:
+            raise RuntimeError(
+                "Constituent must be level 1 or higher to calculate density from atom density"
+            )
+        return aden * self.a_value / self.avogadro
+
+    def aden_from_den(self, den: float) -> float:
+        """Calculate atom density from density"""
+        if not self.sealed:
+            raise RuntimeError("Constituent not sealed")
+        assert self.level is not None
+        if self.level < 1:
+            raise RuntimeError(
+                "Constituent must be level 1 or higher to calculate atom density from density"
+            )
+        return den * self.avogadro / self.a_value
+
     # endregion
 
     # region view methods
@@ -336,15 +368,16 @@ class Constituent(IConstituent):
             return tbl
 
         else:
+            assert self._level is not None
+            oav: int = self._level + 1
+            omf: int = oav + 1 + 2 * (self._level - 1)
+            oaf: int = omf + 1
+
             for child in self.constituents():
                 child_tbl = child.table()
 
-                mfrac = self.mass_fraction(child.name)
-                afrac = self.atom_fraction(child.name)
-                assert self._level is not None
-                oav = self._level + 1
-                omf = oav + 1 + 2 * (self._level - 1)
-                oaf = omf + 1
+                mfrac: float = self.mass_fraction(child.name)
+                afrac: float = self.atom_fraction(child.name)
 
                 if self._level == 1:
                     for i in range(len(child_tbl)):
@@ -360,11 +393,11 @@ class Constituent(IConstituent):
                         child_tbl[i].append(f"{afrac * float(child_tbl[i][oaf - 2]):.6e}")
                         tbl.append(child_tbl[i])
 
-            self_tbl = ["" for i in range(oaf + 1)]  # type: ignore
+            self_tbl = ["" for i in range(oaf + 1)]
             self_tbl[0] = f"{self.name}"
-            self_tbl[oav] = f"{self.a_value:.6e}"  # type: ignore
-            self_tbl[omf] = f"{sum([self._composition[key].mass for key in self._composition]):.6e}"  # type: ignore
-            self_tbl[oaf] = f"{sum([self._composition[key].atom for key in self._composition]):.6e}"  # type: ignore
+            self_tbl[oav] = f"{self.a_value:.6e}"
+            self_tbl[omf] = f"{sum([self._composition[key].mass for key in self._composition]):.6e}"
+            self_tbl[oaf] = f"{sum([self._composition[key].atom for key in self._composition]):.6e}"
             tbl.append(self_tbl)
             return tbl
 

@@ -1,7 +1,6 @@
-from nexa.data import Isotope, abundances, elements
+from nexa.data import Constituent, Isotope, abundances, elements
 from nexa.data.isotopes import iso_by_a, iso_by_element, iso_by_symbol, iso_by_z, isotopes
 from nexa.globals import CompositionMode
-from nexa.material import Constituent
 
 
 def main():
@@ -81,6 +80,12 @@ def main():
     salt = Constituent("salt", CompositionMode.Atom)
     salt.add(na, 1).add(cl, 1).seal()
     salt.display()
+
+    cl = abundances["cl"]
+    k = abundances["k"]
+    kcl = Constituent("kcl", CompositionMode.Atom)
+    kcl.add(k, 1).add(cl, 1).seal()
+    kcl.display()
 
     sn = abundances["sn"]
     cu = abundances["cu"]
