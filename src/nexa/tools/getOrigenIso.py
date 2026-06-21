@@ -66,6 +66,22 @@ def main():
     cases = parser.parse_lines(lines)  # List[CaseOverview]
 
     # First case is irradiation
+            # class CaseOverview:
+        #     """Data class representing overview information for a case."""
+        # 
+        #     case_id: str
+        #     case_index: int
+        #     total_cases: int
+        #     title: str = ""
+        #     time_units: Optional[OrigenTimeUnits] = None
+        #     # Do not use an index into steps as an index into concentrations table, as the latter includes t=0
+        #     # index i into steps corresponds to step i+1 since it is zero-based
+        #     # concentrations at the end of index i into steps are at index i+1 in concentrations
+        #     # concentrations at the beginning of index i into steps are at index i in concentrations
+        #     # maybe to use step number as index into steps (i.e., 1-based)
+        #     # Better to use time_steps in NuclideConcentrationTable for finding appropriate concentration
+        #     steps: List[CaseStep] = field(default_factory=list)
+        #     concentrations: List[OrigenConcentrationData] = field(default_factory=list)        
     case: CaseOverview = cases[0]
     conc_data: Optional[OrigenConcentrationData] = case.concentration_data_by_units(
         OrigenConcentrationUnits.ATOMS_PER_BARN_CM
@@ -112,8 +128,8 @@ def main():
                 if (i + 1) % nper == 0 or i == len(con_isos) - 1:
                     print(line.rstrip(), file=o)
                     line = "    "
-
-    # Write MCNP material cards for each burn zone all to one file
+    
+    # Write MCNP material cards for each burn zone all to one file for the next flux calc
     # Note the first zone must be processed first to create the file (ugly)
     mcnp_iso_name = f"{case_series}{case_calc}{case_index:02d}b{next_step:02d}d{next_depl}BurnMat"
     print(f"Writing MCNP material card to {mcnp_iso_name}")
