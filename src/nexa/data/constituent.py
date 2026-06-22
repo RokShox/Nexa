@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from copy import deepcopy
 from io import StringIO
-from typing import NamedTuple, Optional, Self, TextIO, cast
+from typing import Literal, NamedTuple, Optional, Self, TextIO, cast
 
 # from ruamel.yaml import YAML
 from nexa.data.isotope import Isotope
@@ -142,6 +142,39 @@ class Constituent(IConstituent):
     # endregion
 
     # region public methods
+    @classmethod
+    def from_constituents(
+        cls,
+        name: str,
+        mode: CompositionMode,
+        constituents: list[IConstituent],
+        fractions: list[float],
+    ) -> Constituent:
+        """Create a sealed constituent from a list of child constituents.
+
+        Children are added in descending level order so that lower-level constituents are
+        promoted rather than demoted when levels differ.
+
+        Fractions are relative weights in the given ``mode`` (atom or mass stoichiometry) and
+        are normalized during sealing.
+        """
+        if not constituents:
+            raise ValueError("At least one constituent is required")
+        if len(fractions) != len(constituents):
+            raise ValueError("Number of constituents and fractions must match")
+
+        sorted_pairs = sorted(
+            zip(constituents, fractions),
+            key=lambda pair: pair[0].level or 0,
+            reverse=True,
+        )
+
+        con = cls(name, mode)
+        for constituent, fraction in sorted_pairs:
+            con.add(constituent, fraction)
+        con.seal()
+        return con
+
     def seal(self) -> None:
         """Seal the constituent"""
         if self.sealed:
@@ -350,6 +383,214 @@ class Constituent(IConstituent):
                 "Constituent must be level 1 or higher to calculate atom density from density"
             )
         return den * self.avogadro / self.a_value
+
+    @staticmethod
+    def normalize_path(path: str) -> str:
+        """Return canonical path string with trimmed edges and single spaces around separators."""
+        stripped = path.strip()
+        if not stripped:
+            raise ValueError("Path must not be empty")
+        if ">" in stripped and "<" in stripped:
+            raise ValueError("Path cannot mix '>' and '<' separators")
+        if ">" in stripped:
+            parts = [part.strip().lower() for part in stripped.split(">")]
+            return " > ".join(parts)
+        if "<" in stripped:
+            parts = [part.strip().lower() for part in stripped.split("<")]
+            return " < ".join(parts)
+        return stripped.lower()
+
+    def path_fractions(self, path: str) -> dict[str, tuple[float, float]]:
+        """Resolve mass and atom fractions for constituent(s) identified by a path string.
+
+        Paths may use downward ``>`` traversal from ``self.name``, upward ``<`` traversal from an
+        isotope, or a single isotope name / ``*`` shorthand. Spaces around separators are not
+        significant for parsing.
+
+        Returns a dict mapping path strings to ``(mass_frac, atom_frac)`` relative to ``self``.
+        Resolved branch keys use canonical downward form (``" > "`` separators) with segment
+        names folded to lowercase. Segment matching is case-insensitive. When the query contains
+        ``*`` or matches multiple branches, an additional entry is included whose key is the
+        verbatim ``path`` argument and whose value is the weighted sum across resolved entries.
+
+        Examples::
+
+            fuel.path_fractions("Fuel > UO2 > O > o-16")
+            fuel.path_fractions("Fuel > * > O")
+            fuel.path_fractions("o-16 < O")
+            fuel.path_fractions("o-16")
+            fuel.path_fractions("*")
+        """
+        if not self.sealed:
+            raise RuntimeError("Constituent not sealed")
+
+        direction, segments = self._parse_fraction_path(path)
+        if direction == "down":
+            if segments[0].lower() != self.name.lower():
+                raise ValueError(
+                    f"Downward path must start with '{self.name}', got '{segments[0]}'"
+                )
+            results = self._resolve_down(segments)
+        elif direction == "up":
+            results = self._resolve_up(segments)
+        else:
+            results = self._resolve_single_token(segments[0])
+
+        self._add_query_sum(results, path)
+        return results
+
+    # endregion
+
+    # region path fraction helpers
+    PathDirection = Literal["down", "up", "single"]
+
+    @staticmethod
+    def _parse_fraction_path(path: str) -> tuple[PathDirection, list[str]]:
+        stripped = path.strip()
+        if not stripped:
+            raise ValueError("Path must not be empty")
+        has_down = ">" in stripped
+        has_up = "<" in stripped
+        if has_down and has_up:
+            raise ValueError("Path cannot mix '>' and '<' separators")
+        if has_down:
+            segments = [part.strip() for part in stripped.split(">")]
+            return "down", segments
+        if has_up:
+            segments = [part.strip() for part in stripped.split("<")]
+            return "up", segments
+        return "single", [stripped]
+
+    @staticmethod
+    def _canonical_path(parts: list[str]) -> str:
+        return " > ".join(part.lower() for part in parts)
+
+    def _record_path_fraction(
+        self,
+        results: dict[str, tuple[float, float]],
+        parts: list[str],
+        mass_acc: float,
+        atom_acc: float,
+    ) -> None:
+        key = self._canonical_path(parts)
+        if key in results:
+            existing_mass, existing_atom = results[key]
+            results[key] = (existing_mass + mass_acc, existing_atom + atom_acc)
+        else:
+            results[key] = (mass_acc, atom_acc)
+
+    def _matching_children(self, node: Constituent, token: str) -> list[IConstituent]:
+        if token == "*":
+            return node.constituents()
+        token_fold = token.lower()
+        return [child for child in node.constituents() if child.name.lower() == token_fold]
+
+    def _enumerate_paths(self) -> list[tuple[list[str], float, float, IConstituent]]:
+        entries: list[tuple[list[str], float, float, IConstituent]] = []
+
+        def walk(
+            node: IConstituent,
+            parts: list[str],
+            mass_acc: float,
+            atom_acc: float,
+        ) -> None:
+            entries.append((parts, mass_acc, atom_acc, node))
+            if node.level == 0:
+                return
+            parent = cast(Constituent, node)
+            for child in parent.constituents():
+                child_mass = mass_acc * parent.mass_fraction(child.name)
+                child_atom = atom_acc * parent.atom_fraction(child.name)
+                walk(child, parts + [child.name], child_mass, child_atom)
+
+        walk(self, [self.name], 1.0, 1.0)
+        return entries
+
+    @staticmethod
+    def _suffix_matches(path_parts: list[str], pattern: list[str]) -> bool:
+        if len(pattern) > len(path_parts):
+            return False
+        suffix = path_parts[-len(pattern) :]
+        for index, token in enumerate(pattern):
+            path_token = suffix[-(index + 1)]
+            if token == "*":
+                continue
+            if token.lower() != path_token.lower():
+                return False
+        return True
+
+    def _resolve_down(self, segments: list[str]) -> dict[str, tuple[float, float]]:
+        results: dict[str, tuple[float, float]] = {}
+
+        if len(segments) == 1:
+            results[self._canonical_path([self.name])] = (1.0, 1.0)
+            return results
+
+        def descend(
+            node: Constituent,
+            index: int,
+            parts: list[str],
+            mass_acc: float,
+            atom_acc: float,
+        ) -> None:
+            token = segments[index]
+            is_last = index == len(segments) - 1
+            children = self._matching_children(node, token)
+            if not children:
+                return
+
+            for child in children:
+                child_mass = mass_acc * node.mass_fraction(child.name)
+                child_atom = atom_acc * node.atom_fraction(child.name)
+                child_parts = parts + [child.name]
+                if is_last:
+                    self._record_path_fraction(results, child_parts, child_mass, child_atom)
+                elif child.level != 0:
+                    descend(
+                        cast(Constituent, child),
+                        index + 1,
+                        child_parts,
+                        child_mass,
+                        child_atom,
+                    )
+
+        descend(self, 1, [self.name], 1.0, 1.0)
+        return results
+
+    def _resolve_up(self, segments: list[str]) -> dict[str, tuple[float, float]]:
+        results: dict[str, tuple[float, float]] = {}
+        for path_parts, mass_acc, atom_acc, node in self._enumerate_paths():
+            if node.level != 0:
+                continue
+            if node.name.lower() != segments[0].lower():
+                continue
+            if self._suffix_matches(path_parts, segments):
+                self._record_path_fraction(results, path_parts, mass_acc, atom_acc)
+        return results
+
+    def _resolve_single_token(self, token: str) -> dict[str, tuple[float, float]]:
+        if token == "*":
+            results: dict[str, tuple[float, float]] = {}
+            for path_parts, mass_acc, atom_acc, node in self._enumerate_paths():
+                if node.level == 0:
+                    self._record_path_fraction(results, path_parts, mass_acc, atom_acc)
+            return results
+        return self._resolve_up([token])
+
+    @staticmethod
+    def _add_query_sum(results: dict[str, tuple[float, float]], query_path: str) -> None:
+        if not results:
+            if "*" in query_path:
+                results[query_path] = (0.0, 0.0)
+            return
+
+        add_sum = "*" in query_path or len(results) > 1
+        if not add_sum:
+            return
+
+        total_mass = sum(mass for mass, _atom in results.values())
+        total_atom = sum(atom for _mass, atom in results.values())
+        results[query_path] = (total_mass, total_atom)
 
     # endregion
 

@@ -1,21 +1,26 @@
-"""Interface for Isotope and Constituent
+"""Interface for Isotope and Constituent.
 
-Whether to implement as Protocol ot ABC discussed here:
+Whether to implement as Protocol or ABC is discussed here:
 https://medium.com/@pouyahallaj/introduction-1616b3a4a637
 
+Implementations:
+- Isotope: leaf node (level 0, always sealed). ``constituents()`` returns an
+  empty list. ``fraction()`` always returns 0.0. ``demote()`` and ``promote()``
+  raise RuntimeError.
+- Constituent: composite node. ``a_value``, ``table()``, and ``display()``
+  require the instance to be sealed; they raise RuntimeError otherwise.
 """
 
-# Disbale name check on IConstituent while it is being defined
+# Disable name check on IConstituent while it is being defined
 from __future__ import annotations
 
-from typing import List, Optional, Protocol, Self, TextIO
+from typing import Optional, Protocol, Self, TextIO
 
 from nexa.globals.enum import CompositionMode
 
 
-# Interface for Isotope and Constituent
 class IConstituent(Protocol):
-    """Interface for Isotope and Constituent"""
+    """Shared interface for Isotope (leaf) and Constituent (composite) nodes."""
 
     @property
     def name(self) -> str:
@@ -37,12 +42,19 @@ class IConstituent(Protocol):
         ...
 
     def fraction(self, name: str, mode: CompositionMode) -> float:
-        """Get fraction by name and mode"""
+        """Get fraction by name and mode.
+
+        Isotope always returns 0.0 (leaf node with no children).
+        """
         ...
 
     @property
     def a_value(self) -> float:
-        """Constituent a value"""
+        """Average atomic mass [amu/atom].
+
+        Isotope always returns ``amu``. Constituent requires ``sealed`` to be
+        True; raises RuntimeError otherwise.
+        """
         ...
 
     @property
@@ -51,17 +63,37 @@ class IConstituent(Protocol):
         ...
 
     def copy(self, new_name: str = "") -> Self:
-        """Deep copy the isotope."""
+        """Deep copy the constituent."""
         ...
 
     def demote(self) -> Self:
-        """Demote the constituent to the next lower level."""
+        """Demote the constituent to the next lower level.
+
+        Isotope raises RuntimeError (cannot demote a leaf).
+        """
         ...
 
     def promote(self) -> Self:
-        """Promote the constituent to the next higher level."""
+        """Promote the constituent to the next higher level.
+
+        Isotope raises RuntimeError (cannot promote a leaf).
+        """
         ...
 
-    def table(self) -> List[List[str]]: ...
+    def table(self) -> list[list[str]]:
+        """Build a tabular representation of the hierarchy.
 
-    def display(self, file: Optional[TextIO] = None, to_string: bool = False) -> Optional[str]: ...
+        Constituent requires ``sealed`` to be True; raises RuntimeError
+        otherwise.
+        """
+        ...
+
+    def display(
+        self, file: Optional[TextIO] = None, to_string: bool = False
+    ) -> Optional[str]:
+        """Display the tabular representation.
+
+        Constituent requires ``sealed`` to be True; raises RuntimeError
+        otherwise. Returns the formatted string when ``to_string`` is True.
+        """
+        ...
