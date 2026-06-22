@@ -1,13 +1,17 @@
+import re
 import unittest
 
 from nexa.data import Constituent, abundances
+from nexa.data.isotopes import isotopes
 from nexa.globals import CompositionMode
 
 
 def build_fuel() -> Constituent:
-    u = abundances["U"]
+    u = Constituent("U", CompositionMode.Mass)
+    u.add(isotopes["u-235"], 0.05).add(isotopes["u-238"], 0.95).seal()
     o = abundances["O"]
-    pu = abundances["Pu"]
+    pu = Constituent("Pu", CompositionMode.Mass)
+    pu.add(isotopes["pu-239"], 0.96).add(isotopes["pu-240"], 0.04).seal()
 
     uo2 = Constituent("UO2", CompositionMode.Atom)
     uo2.add(u, 1.0).add(o, 2.0).seal()
@@ -15,8 +19,8 @@ def build_fuel() -> Constituent:
     puo2 = Constituent("PuO2", CompositionMode.Atom)
     puo2.add(pu, 1.0).add(o.copy("O"), 2.0).seal()
 
-    fuel = Constituent("Fuel", CompositionMode.Mass)
-    fuel.add(uo2, 0.9).add(puo2, 0.1).seal()
+    fuel = Constituent("Fuel", CompositionMode.Atom)
+    fuel.add(uo2, 0.5).add(puo2, 0.5).seal()
     return fuel
 
 
@@ -125,6 +129,45 @@ class TestPathFractions(unittest.TestCase):
         query = "Fuel > UO2 > O > o-16"
         result = self.fuel.path_fractions(query)
         self.assertIn(Constituent.normalize_path(query), result)
+
+    def test_display_path_fractions_headers_and_format(self):
+        result = self.fuel.path_fractions("Fuel > * > O")
+        output = self.fuel.display_path_fractions(result, to_string=True)
+        assert output is not None
+        self.assertIn("Path", output)
+        self.assertIn("Mass Fraction", output)
+        self.assertIn("Atom Fraction", output)
+        for key, (mass, atom) in result.items():
+            self.assertIn(key, output)
+            self.assertIn(f"{mass:.8e}", output)
+            self.assertIn(f"{atom:.8e}", output)
+
+    def test_display_path_fractions_column_alignment(self):
+        result = self.fuel.path_fractions("Fuel > * > O")
+        output = self.fuel.display_path_fractions(result, to_string=True)
+        assert output is not None
+        lines = output.rstrip("\n").split("\n")
+        self.assertGreaterEqual(len(lines), 2)
+
+        def find_numeric_columns(line: str) -> tuple[int, int]:
+            matches = list(re.finditer(r"\d\.\d{8}e[+-]\d{2}", line))
+            self.assertEqual(len(matches), 2, msg=line)
+            return matches[0].start(), matches[1].start()
+
+        first_mass_col, first_atom_col = find_numeric_columns(lines[1])
+        for line in lines[2:]:
+            mass_col, atom_col = find_numeric_columns(line)
+            self.assertEqual(mass_col, first_mass_col)
+            self.assertEqual(atom_col, first_atom_col)
+
+    def test_display_path_fractions_empty_dict(self):
+        output = self.fuel.display_path_fractions({}, to_string=True)
+        assert output is not None
+        lines = output.rstrip("\n").split("\n")
+        self.assertEqual(len(lines), 1)
+        self.assertIn("Path", lines[0])
+        self.assertIn("Mass Fraction", lines[0])
+        self.assertIn("Atom Fraction", lines[0])
 
 
 if __name__ == "__main__":

@@ -608,6 +608,45 @@ class Constituent(IConstituent):
     # endregion
 
     # region view methods
+    def display_path_fractions(
+        self,
+        results: dict[str, tuple[float, float]],
+        file: Optional[TextIO] = None,
+        to_string: bool = False,
+    ) -> Optional[str]:
+        """Display path_fractions results as a column-aligned table.
+
+        Returns the formatted string when ``to_string`` is True.
+        """
+        headers = ("Path", "Mass Fraction", "Atom Fraction")
+        min_sep = 3
+        num_fmt = ".8e"
+
+        path_pad = max(len(headers[0]), max((len(k) for k in results), default=0)) + min_sep
+        mass_strs = [f"{m:{num_fmt}}" for m, _ in results.values()]
+        atom_strs = [f"{a:{num_fmt}}" for _, a in results.values()]
+        mass_pad = max(len(headers[1]), max((len(s) for s in mass_strs), default=0)) + min_sep
+        atom_pad = max(len(headers[2]), max((len(s) for s in atom_strs), default=0)) + min_sep
+
+        if to_string:
+            output_file = StringIO()
+        elif file is None:
+            output_file = sys.stdout
+        else:
+            output_file = file
+
+        output_file.write(
+            f"{headers[0]:<{path_pad}}{headers[1]:>{mass_pad}}{headers[2]:>{atom_pad}}\n"
+        )
+        for key, (mass, atom) in results.items():
+            output_file.write(
+                f"{key:<{path_pad}}{f'{mass:.8e}':>{mass_pad}}{f'{atom:.8e}':>{atom_pad}}\n"
+            )
+
+        if to_string:
+            return cast(StringIO, output_file).getvalue()
+        return None
+
     def table(self) -> list[list[str]]:
         if not self.sealed:
             raise RuntimeError("Constituent not sealed")

@@ -23,6 +23,7 @@
 *.settings
 .coverage
 .idea
+.vscode
 .project
 .pydevproject
 .tox
