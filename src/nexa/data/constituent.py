@@ -7,6 +7,7 @@ from typing import Literal, NamedTuple, Optional, Self, TextIO, cast
 
 # from ruamel.yaml import YAML
 from nexa.data.isotope import Isotope
+from nexa.data.isotopes import isotopes
 from nexa.globals import CompositionMode
 from nexa.interface import IConstituent
 
@@ -14,6 +15,8 @@ CompositionEntry = NamedTuple(
     "CompositionEntry",
     [("constituent", IConstituent), ("mass", float), ("atom", float)],
 )
+
+_PATH_FRACTIONS_TOTAL_KEY = "total"
 
 
 class Constituent(IConstituent):
@@ -410,16 +413,16 @@ class Constituent(IConstituent):
         Returns a dict mapping path strings to ``(mass_frac, atom_frac)`` relative to ``self``.
         Resolved branch keys use canonical downward form (``" > "`` separators) with segment
         names folded to lowercase. Segment matching is case-insensitive. When the query contains
-        ``*`` or matches multiple branches, an additional entry is included whose key is the
-        verbatim ``path`` argument and whose value is the weighted sum across resolved entries.
+        ``*`` or matches multiple branches, an additional ``"total"`` entry is included with the
+        weighted sum across resolved entries.
 
         Examples::
 
             fuel.path_fractions("Fuel > UO2 > O > o-16")
-            fuel.path_fractions("Fuel > * > O")
-            fuel.path_fractions("o-16 < O")
-            fuel.path_fractions("o-16")
-            fuel.path_fractions("*")
+            fuel.path_fractions("Fuel > * > O")["total"]
+            fuel.path_fractions("o-16 < O")["total"]
+            fuel.path_fractions("o-16")["total"]
+            fuel.path_fractions("*")["total"]
         """
         if not self.sealed:
             raise RuntimeError("Constituent not sealed")
@@ -432,11 +435,17 @@ class Constituent(IConstituent):
                 )
             results = self._resolve_down(segments)
         elif direction == "up":
-            results = self._resolve_up(segments)
+            if not self._is_valid_isotope_segment(segments[0]):
+                results = {}
+            else:
+                results = self._resolve_up(segments)
         else:
-            results = self._resolve_single_token(segments[0])
+            if segments[0] == "*" or self._is_valid_isotope_segment(segments[0]):
+                results = self._resolve_single_token(segments[0])
+            else:
+                results = {}
 
-        self._add_query_sum(results, path)
+        self._add_total_sum(results, path)
         return results
 
     # endregion
@@ -557,6 +566,10 @@ class Constituent(IConstituent):
         descend(self, 1, [self.name], 1.0, 1.0)
         return results
 
+    @staticmethod
+    def _is_valid_isotope_segment(segment: str) -> bool:
+        return segment in isotopes
+
     def _resolve_up(self, segments: list[str]) -> dict[str, tuple[float, float]]:
         results: dict[str, tuple[float, float]] = {}
         for path_parts, mass_acc, atom_acc, node in self._enumerate_paths():
@@ -578,10 +591,10 @@ class Constituent(IConstituent):
         return self._resolve_up([token])
 
     @staticmethod
-    def _add_query_sum(results: dict[str, tuple[float, float]], query_path: str) -> None:
+    def _add_total_sum(results: dict[str, tuple[float, float]], query_path: str) -> None:
         if not results:
             if "*" in query_path:
-                results[query_path] = (0.0, 0.0)
+                results[_PATH_FRACTIONS_TOTAL_KEY] = (0.0, 0.0)
             return
 
         add_sum = "*" in query_path or len(results) > 1
@@ -590,7 +603,7 @@ class Constituent(IConstituent):
 
         total_mass = sum(mass for mass, _atom in results.values())
         total_atom = sum(atom for _mass, atom in results.values())
-        results[query_path] = (total_mass, total_atom)
+        results[_PATH_FRACTIONS_TOTAL_KEY] = (total_mass, total_atom)
 
     # endregion
 

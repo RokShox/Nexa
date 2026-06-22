@@ -52,6 +52,7 @@ class TestPathFractions(unittest.TestCase):
         mass, atom = result[key]
         self.assertGreater(mass, 0.0)
         self.assertGreater(atom, 0.0)
+        self.assertNotIn("total", result)
 
     def test_exact_downward_path_noncanonical_query_has_one_entry(self):
         query = "  fuel > uo2 > o > o-16  "
@@ -64,49 +65,52 @@ class TestPathFractions(unittest.TestCase):
         result = self.fuel.path_fractions(query)
         self.assertIn("fuel > uo2 > o", result)
         self.assertIn("fuel > puo2 > o", result)
-        self.assertIn(query, result)
+        self.assertIn("total", result)
 
         uo2_mass, uo2_atom = result["fuel > uo2 > o"]
         puo2_mass, puo2_atom = result["fuel > puo2 > o"]
-        sum_mass, sum_atom = result[query]
+        sum_mass, sum_atom = result["total"]
         self.assertAlmostEqual(sum_mass, uo2_mass + puo2_mass)
         self.assertAlmostEqual(sum_atom, uo2_atom + puo2_atom)
 
-    def test_verbatim_query_key_with_extra_spaces(self):
+    def test_total_key_is_stable_for_spaced_query(self):
         query = "  Fuel > * > O  "
         result = self.fuel.path_fractions(query)
-        self.assertIn(query, result)
-        self.assertNotIn("fuel > * > o", result)
+        self.assertIn("total", result)
+        self.assertNotIn(query, result)
 
     def test_upward_partial_path_case_insensitive(self):
         query = "o-16 < O"
         result = self.fuel.path_fractions(query)
         self.assertIn("fuel > uo2 > o > o-16", result)
         self.assertIn("fuel > puo2 > o > o-16", result)
-        self.assertIn(query, result)
+        self.assertIn("total", result)
         uo2 = result["fuel > uo2 > o > o-16"]
         puo2 = result["fuel > puo2 > o > o-16"]
-        self.assertAlmostEqual(result[query][0], uo2[0] + puo2[0])
-        self.assertAlmostEqual(result[query][1], uo2[1] + puo2[1])
+        self.assertAlmostEqual(result["total"][0], uo2[0] + puo2[0])
+        self.assertAlmostEqual(result["total"][1], uo2[1] + puo2[1])
 
     def test_bare_isotope_sums_branches(self):
         query = "O-16"
         result = self.fuel.path_fractions(query)
         self.assertIn("fuel > uo2 > o > o-16", result)
-        self.assertIn(query, result)
+        self.assertIn("total", result)
 
     def test_bare_wildcard_all_isotopes(self):
-        query = "*"
-        result = self.fuel.path_fractions(query)
-        self.assertIn(query, result)
-        self.assertAlmostEqual(result[query][0], 1.0)
-        self.assertAlmostEqual(result[query][1], 1.0)
-        isotope_keys = [key for key in result if key != query]
+        result = self.fuel.path_fractions("*")
+        self.assertIn("total", result)
+        self.assertAlmostEqual(result["total"][0], 1.0)
+        self.assertAlmostEqual(result["total"][1], 1.0)
+        isotope_keys = [key for key in result if key != "total"]
         self.assertGreater(len(isotope_keys), 1)
         total_mass = sum(result[key][0] for key in isotope_keys)
         total_atom = sum(result[key][1] for key in isotope_keys)
         self.assertAlmostEqual(total_mass, 1.0)
         self.assertAlmostEqual(total_atom, 1.0)
+
+    def test_invalid_isotope_segment_returns_empty(self):
+        self.assertEqual(self.fuel.path_fractions("not-an-isotope"), {})
+        self.assertEqual(self.fuel.path_fractions("not-an-isotope < o"), {})
 
     def test_downward_path_wrong_root_raises(self):
         with self.assertRaises(ValueError):
