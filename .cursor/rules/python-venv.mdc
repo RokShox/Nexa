@@ -1,0 +1,25 @@
+---
+description: Use the project virtualenv for Python commands
+alwaysApply: true
+---
+
+# Python environment
+
+When running Python, pytest, pip, or other Python tooling in the terminal, use the project venv at `/u/csh/venv/venv3.13`.
+
+Prefer the venv interpreter directly:
+
+```bash
+/u/csh/venv/venv3.13/bin/python -m pytest -q
+```
+
+Or activate first in a shell session:
+
+```bash
+source /u/csh/venv/venv3.13/bin/activate && python -m pytest -q
+```
+
+Do not use system `/usr/bin/python3` unless the venv is unavailable.
+
+Nexa repo root: `/u/csh/repos/Nexa`
+Ampx repo root: `/u/csh/Ampx`

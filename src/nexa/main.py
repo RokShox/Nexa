@@ -126,6 +126,12 @@ def main():
     #     salt.display(f)
     #     bronze.display(f)
 
+    # print(ss316h.isotopes())
+
+    query: str = "ss316h > c"
+    result = ss316h.path_fractions(query)
+    print(f"{query} = {result}")
+
 
 def main_cli():
     """Run repl loop."""

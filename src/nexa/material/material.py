@@ -3,6 +3,7 @@ from typing import Optional, cast
 
 from nexa.data import Constituent
 from nexa.globals import CompositionMode
+from nexa.interface import IConstituent
 
 
 @dataclass(init=False)
@@ -79,12 +80,6 @@ class Material:
         )
 
     @staticmethod
-    def _composition_level(mat: "Material") -> int:
-        if mat.composition is None or mat.composition.level is None:
-            return 0
-        return mat.composition.level
-
-    @staticmethod
     def _required_mass_density(mat: "Material") -> float:
         den = mat.mass_density
         if den is None:
@@ -152,21 +147,18 @@ class Material:
         )
         mass_density = nominal_density if mass_density is None else mass_density
 
-        # Sort materials by composition level in descending order so that lower level constituents are promoted to higher levels in the resulting composition
-        sorted_pairs = sorted(
-            zip(mats, mass_fracs),
-            key=lambda x: cls._composition_level(x[0]),
-            reverse=True,
-        )
-
-        # Create composition
-        mode = CompositionMode.Mass
-        con: Constituent = Constituent(name=name, mode=mode)
-        for mat, mf in sorted_pairs:
+        constituents: list[IConstituent] = []
+        for mat in mats:
             if mat.composition is None:
                 raise ValueError(f"Cannot mix material '{mat.name}' because composition is not set")
-            con.add(mat.composition, mf)
-        con.seal()
+            constituents.append(mat.composition)
+
+        con = Constituent.from_constituents(
+            name=name,
+            mode=CompositionMode.Mass,
+            constituents=constituents,
+            fractions=mass_fracs,
+        )
 
         return cls.create(
             name=name,
@@ -205,21 +197,18 @@ class Material:
         )
         atom_density = nominal_atom_density if atom_density is None else atom_density
 
-        # Sort materials by composition level in descending order so that lower level constituents are promoted to higher levels in the resulting composition
-        sorted_pairs = sorted(
-            zip(mats, atom_fracs),
-            key=lambda x: cls._composition_level(x[0]),
-            reverse=True,
-        )
-
-        # Create composition
-        mode = CompositionMode.Atom
-        con: Constituent = Constituent(name=name, mode=mode)
-        for mat, af in sorted_pairs:
+        constituents: list[IConstituent] = []
+        for mat in mats:
             if mat.composition is None:
                 raise ValueError(f"Cannot mix material '{mat.name}' because composition is not set")
-            con.add(mat.composition, af)
-        con.seal()
+            constituents.append(mat.composition)
+
+        con = Constituent.from_constituents(
+            name=name,
+            mode=CompositionMode.Atom,
+            constituents=constituents,
+            fractions=atom_fracs,
+        )
 
         return cls.create(
             name=name,
@@ -263,21 +252,18 @@ class Material:
         # override nominal mass density if mass density is provided
         mass_density = nominal_mass_density if mass_density is None else mass_density
 
-        # Sort materials by composition level in descending order so that lower level constituents are promoted to higher levels in the resulting composition
-        sorted_pairs = sorted(
-            zip(mats, mass_fracs),
-            key=lambda x: cls._composition_level(x[0]),
-            reverse=True,
-        )
-
-        # Create composition
-        mode = CompositionMode.Mass
-        con: Constituent = Constituent(name=name, mode=mode)
-        for mat, mf in sorted_pairs:
+        constituents: list[IConstituent] = []
+        for mat in mats:
             if mat.composition is None:
                 raise ValueError(f"Cannot mix material '{mat.name}' because composition is not set")
-            con.add(mat.composition, mf)
-        con.seal()
+            constituents.append(mat.composition)
+
+        con = Constituent.from_constituents(
+            name=name,
+            mode=CompositionMode.Mass,
+            constituents=constituents,
+            fractions=mass_fracs,
+        )
 
         return cls.create(
             name=name,

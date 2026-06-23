@@ -44,6 +44,9 @@ dependencies = [
     "yamlize",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest"]
+
 [build-system]
 requires = ["setuptools>=61.2"]
 build-backend = "setuptools.build_meta"
@@ -59,3 +62,7 @@ getOrigenIso = "nexa.tools.getOrigenIso:main"
 [tool.ruff]
 line-length = 100
 per-file-ignores = { "**/__init__.py" = ["F401"] }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
