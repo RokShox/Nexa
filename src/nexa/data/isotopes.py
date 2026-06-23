@@ -66,6 +66,7 @@ class _ReadOnlyIsotopes(UserDict[str, Isotope]):
 
 
 def _load_isotopes() -> dict[str, Isotope]:
+    print("initializing Isotopes")
     resource = files("nexa.resources") / "tblSCALENuclideMass.yaml"
     yaml = YAML()
     raw_dict: dict[str, list] = yaml.load(resource)

@@ -1,7 +1,10 @@
-from dataclasses import dataclass, field
-from typing import Optional, cast
+from __future__ import annotations
 
-from nexa.data import Constituent
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from typing import Any, Optional, cast
+
+from nexa.data import Constituent, abundances, isotopes
 from nexa.globals import CompositionMode
 from nexa.interface import IConstituent
 
@@ -117,6 +120,149 @@ class Material:
             description=description,
             source=source,
         )
+
+    @staticmethod
+    def _parse_composition_mode(raw_mode: Any, context: str) -> CompositionMode:
+        """Parse a composition mode from a string or enum value."""
+        if isinstance(raw_mode, CompositionMode):
+            return raw_mode
+        if isinstance(raw_mode, str):
+            normalized = raw_mode.strip().casefold()
+            for mode in CompositionMode:
+                if mode.name.casefold() == normalized or str(mode.value).casefold() == normalized:
+                    return mode
+        raise ValueError(f"Invalid mode '{raw_mode}' for {context}")
+
+    @staticmethod
+    def _validate_material_name(name: str) -> None:
+        """Reject material names that match isotope or element symbols."""
+        if name in isotopes:
+            raise ValueError(
+                f"Material name '{name}' matches an isotope symbol and is not allowed"
+            )
+        if name in abundances:
+            raise ValueError(
+                f"Material name '{name}' matches an element symbol and is not allowed"
+            )
+
+    @staticmethod
+    def _resolve_constituent(
+        key: str,
+        material_name: str,
+        *,
+        problem_materials: Mapping[str, Material],
+        master_materials: Mapping[str, Material],
+    ) -> IConstituent:
+        """Resolve a fraction key to a constituent.
+
+        Precedence: isotopes, abundances, problem_materials, master_materials.
+        """
+        if key in isotopes:
+            return isotopes[key]
+
+        if key in abundances:
+            return abundances[key]
+
+        if key in problem_materials:
+            mat = problem_materials[key]
+            if mat.composition is None:
+                raise ValueError(
+                    f"Material '{key}' referenced by '{material_name}' has no composition"
+                )
+            return mat.composition
+
+        if key in master_materials:
+            mat = master_materials[key]
+            if mat.composition is None:
+                raise ValueError(
+                    f"Material '{key}' referenced by '{material_name}' has no composition"
+                )
+            return mat.composition
+
+        raise ValueError(
+            f"Constituent '{key}' not found for material '{material_name}': "
+            "not an isotope, element symbol, or defined material"
+        )
+
+    @classmethod
+    def from_definition(
+        cls,
+        name: str,
+        data: dict[str, Any],
+        *,
+        problem_materials: Mapping[str, Material] | None = None,
+        master_materials: Mapping[str, Material] | None = None,
+    ) -> Material:
+        """Create a Material from a YAML-style definition stanza."""
+        cls._validate_material_name(name)
+
+        if "override" in data:
+            raise ValueError(
+                f"Override is not supported for '{name}'; "
+                "define isotopic composition with isotope fraction keys or a separate material"
+            )
+
+        if "mode" not in data:
+            raise ValueError(f"Mode not defined for '{name}'")
+        mode = cls._parse_composition_mode(data["mode"], f"'{name}'")
+        if mode not in (CompositionMode.Mass, CompositionMode.Atom):
+            raise ValueError(f"Invalid mode '{mode}' for '{name}'")
+
+        fractions = {k: float(v) for k, v in data.get("fractions", {}).items()}
+        if not fractions:
+            raise ValueError(f"No fractions defined for material '{name}'")
+
+        problem = problem_materials or {}
+        master = master_materials or {}
+
+        constituents: list[IConstituent] = []
+        frac_list: list[float] = []
+        for key, frac in fractions.items():
+            if frac < 0.0:
+                raise ValueError(
+                    f"Fraction for '{key}' in '{name}' must be positive or zero, got {frac}"
+                )
+            constituents.append(
+                cls._resolve_constituent(
+                    key,
+                    name,
+                    problem_materials=problem,
+                    master_materials=master,
+                )
+            )
+            frac_list.append(frac)
+
+        con = Constituent.from_constituents(name, mode, constituents, frac_list)
+
+        description = data.get("description", "")
+        source = data.get("source", "")
+
+        if "mass_density" in data:
+            try:
+                density = float(data["mass_density"])
+            except (TypeError, ValueError):
+                raise ValueError(f"Invalid mass density for '{name}': {data['mass_density']}")
+            return cls(
+                name=name,
+                composition=con,
+                mass_density=density,
+                description=description,
+                source=source,
+            )
+        if "atom_density" in data:
+            try:
+                density = float(data["atom_density"])
+            except (TypeError, ValueError):
+                raise ValueError(f"Invalid atom density for '{name}': {data['atom_density']}")
+            return cls(
+                name=name,
+                composition=con,
+                atom_density=density,
+                description=description,
+                source=source,
+            )
+
+        raise ValueError(f"No density defined for '{name}'")
 
     @classmethod
     def mix_mat_by_mass(
