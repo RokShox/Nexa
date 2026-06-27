@@ -36,3 +36,6 @@ pip.log
 python.log
 slurm-*.out
 systeminfo.log
+
+# Pyright
+pyrightconfig.json
