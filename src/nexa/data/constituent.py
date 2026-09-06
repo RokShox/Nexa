@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from copy import deepcopy
 from io import StringIO
-from typing import Literal, NamedTuple, Optional, Self, TextIO, cast
+from typing import Literal, NamedTuple, Self, TextIO, cast
 
 # from ruamel.yaml import YAML
 from nexa.data.isotope import Isotope
@@ -11,10 +11,12 @@ from nexa.data.isotopes import isotopes
 from nexa.globals import CompositionMode
 from nexa.interface import IConstituent
 
-CompositionEntry = NamedTuple(
-    "CompositionEntry",
-    [("constituent", IConstituent), ("mass", float), ("atom", float)],
-)
+
+class CompositionEntry(NamedTuple):
+    constituent: IConstituent
+    mass: float
+    atom: float
+
 
 _PATH_FRACTIONS_TOTAL_KEY = "total"
 
@@ -45,7 +47,7 @@ class Constituent(IConstituent):
     # region dunders
     def __init__(self, name: str, mode: CompositionMode = CompositionMode.Atom):
         self._name: str = name
-        self._level: Optional[int] = None
+        self._level: int | None = None
         self._sealed: bool = False
         self._composition: dict[str, CompositionEntry] = {}
         self._a_value: float = 0.0
@@ -87,7 +89,7 @@ class Constituent(IConstituent):
         self._name = name
 
     @property
-    def level(self) -> Optional[int]:
+    def level(self) -> int | None:
         """Constituent level"""
         return self._level
 
@@ -421,6 +423,7 @@ class Constituent(IConstituent):
             fuel.path_fractions("Fuel > UO2 > O > o-16")
             fuel.path_fractions("Fuel > * > O")["total"]
             fuel.path_fractions("o-16 < O")["total"]
+            fuel.path_fractions("* < u")["total"]
             fuel.path_fractions("o-16")["total"]
             fuel.path_fractions("*")["total"]
         """
@@ -568,14 +571,12 @@ class Constituent(IConstituent):
 
     @staticmethod
     def _is_valid_isotope_segment(segment: str) -> bool:
-        return segment in isotopes
+        return segment == "*" or segment in isotopes
 
     def _resolve_up(self, segments: list[str]) -> dict[str, tuple[float, float]]:
         results: dict[str, tuple[float, float]] = {}
         for path_parts, mass_acc, atom_acc, node in self._enumerate_paths():
             if node.level != 0:
-                continue
-            if node.name.lower() != segments[0].lower():
                 continue
             if self._suffix_matches(path_parts, segments):
                 self._record_path_fraction(results, path_parts, mass_acc, atom_acc)
@@ -611,9 +612,9 @@ class Constituent(IConstituent):
     def display_path_fractions(
         self,
         results: dict[str, tuple[float, float]],
-        file: Optional[TextIO] = None,
+        file: TextIO | None = None,
         to_string: bool = False,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Display path_fractions results as a column-aligned table.
 
         Returns the formatted string when ``to_string`` is True.
@@ -694,7 +695,7 @@ class Constituent(IConstituent):
             tbl.append(self_tbl)
             return tbl
 
-    def display(self, file: Optional[TextIO] = None, to_string: bool = False) -> Optional[str]:
+    def display(self, file: TextIO | None = None, to_string: bool = False) -> str | None:
         tbl = self.table()
         # Shut up Pylance
         assert self.level is not None

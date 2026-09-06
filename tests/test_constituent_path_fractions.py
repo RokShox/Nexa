@@ -71,6 +71,27 @@ def test_upward_partial_path_case_insensitive(fuel):
     assert result["total"][1] == pytest.approx(uo2[1] + puo2[1])
 
 
+def test_upward_wildcard_isotope_under_element(fuel):
+    query = "* < u"
+    result = fuel.path_fractions(query)
+    assert "fuel > uo2 > u > u-235" in result
+    assert "fuel > uo2 > u > u-238" in result
+    assert "fuel > puo2 > pu > pu-239" not in result
+    assert "fuel > puo2 > pu > pu-240" not in result
+    assert "total" in result
+    u235 = result["fuel > uo2 > u > u-235"]
+    u238 = result["fuel > uo2 > u > u-238"]
+    assert result["total"][0] == pytest.approx(u235[0] + u238[0])
+    assert result["total"][1] == pytest.approx(u235[1] + u238[1])
+
+
+def test_upward_wildcard_isotope_under_element_case_insensitive(fuel):
+    result = fuel.path_fractions("* < U")
+    assert "fuel > uo2 > u > u-235" in result
+    assert "fuel > uo2 > u > u-238" in result
+    assert "total" in result
+
+
 def test_bare_isotope_sums_branches(fuel):
     query = "O-16"
     result = fuel.path_fractions(query)
